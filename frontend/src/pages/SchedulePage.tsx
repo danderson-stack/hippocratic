@@ -4,8 +4,16 @@ import type { ThreadMessage } from "../services/scheduleApi";
 
 const PENDING_AGENT_MESSAGE = "Agent is typing...";
 
+const INITIAL_AGENT_MESSAGE: ThreadMessage = {
+  role: "assistant",
+  content:
+    "Hi there! I'm the Hippocratic scheduling AI — I can help you book an appointment. Before we get started, I’ll need your first and last name, phone number, email, and the reason for your visit.",
+};
+
 function SchedulePage() {
-  const [messages, setMessages] = useState<ThreadMessage[]>([]);
+  const [messages, setMessages] = useState<ThreadMessage[]>([
+    INITIAL_AGENT_MESSAGE,
+  ]);
   const [threadId, setThreadId] = useState<string | undefined>();
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -53,7 +61,14 @@ function SchedulePage() {
     try {
       const response = await send(threadId, trimmed, selectedSlot);
       setThreadId(response.thread.id);
-      setMessages(response.thread.messages || []);
+      setMessages(() => {
+        const threadMessages = response.thread.messages || [];
+        const isNewThread = !threadId;
+
+        return isNewThread
+          ? [INITIAL_AGENT_MESSAGE, ...threadMessages]
+          : threadMessages;
+      });
       setAvailableSlots(response.availableSlots || []);
       pendingAgentIndexRef.current = null;
     } catch (sendError) {
