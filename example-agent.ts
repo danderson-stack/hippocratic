@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { runAgent } from "./backend/services/agent.ts";
-import { UserProfile, ThreadMessage } from "./backend/types.ts";
+import { runAgent } from "./backend/services/agent";
+import { UserProfile, ThreadMessage } from "./backend/types";
 
 async function exampleAgentUsage() {
   // Example 1: Initial conversation with a new patient
@@ -29,13 +29,12 @@ async function exampleAgentUsage() {
     console.log("Can schedule appointment:", response1.scheduleAppointment);
     console.log();
 
-    // Example 2: Patient provides more information
-    console.log("=== Example 2: Patient provides name and symptoms ===");
+    // Example 2: Patient provides name
+    console.log("=== Example 2: Patient provides first and last name ===");
 
     const updatedPatient = { ...newPatient, ...response1.userUpdate };
 
-    const followUpMessage: string =
-      "My name is John Smith and I'm having chest pain.";
+    const followUpMessage: string = "My name is John Smith.";
 
     const conversationHistory: ThreadMessage[] = [
       { role: "user", content: initialMessage },
@@ -60,7 +59,7 @@ async function exampleAgentUsage() {
     const fullyUpdatedPatient = { ...updatedPatient, ...response2.userUpdate };
 
     const finalMessage: string =
-      "My email is john.smith@email.com, phone is 555-0123, and I'd like to schedule for tomorrow at 2 PM.";
+      "My email is john.smith@email.com and my phone number is 555-0123.";
 
     const fullConversationHistory: ThreadMessage[] = [
       ...conversationHistory,

@@ -3,18 +3,12 @@ import { AgentResponsePayload, ThreadMessage, UserProfile } from "../types";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export const REQUIRED_USER_FIELDS = [
-  "name",
-  "email",
-  "phone",
-  "symptoms",
-  "preferredDate",
-  "preferredTime",
-];
+export const REQUIRED_USER_FIELDS = ["firstName", "lastName", "email", "phone"];
 
-const SYSTEM_INSTRUCTIONS = `You are a compassionate medical intake assistant. Use the conversation and known user fields to gather missing details politely. Always respond with a single JSON object containing: \n- "assistantMessage": string for the patient,\n- "userUpdate": object with any new or updated user fields,\n- "hasAllRequiredFields": boolean true only when ${REQUIRED_USER_FIELDS.join(
-  ", "
-)} are known,\n- "scheduleAppointment": boolean true when the appointment can be scheduled.\nDo not include any extra keys.`;
+const getSystemInstructions = () =>
+  `You are a compassionate medical intake assistant. Use the conversation and known user fields to gather missing details politely. When a user provides their name, split it into firstName and lastName fields. Always respond with a single JSON object containing: \n- "assistantMessage": string for the patient,\n- "userUpdate": object with any new or updated user fields,\n- "hasAllRequiredFields": boolean true only when ${REQUIRED_USER_FIELDS.join(
+    ", "
+  )} are known,\n- "scheduleAppointment": boolean true when all required fields are collected and the user is ready to schedule.\nDo not include any extra keys.`;
 
 export const FALLBACK_ASSISTANT_MESSAGE =
   "I'm sorry, but I couldn't process that right now. Could you please rephrase or provide the details again?";
@@ -51,7 +45,7 @@ const buildMessages = ({
   return [
     {
       role: "system" as const,
-      content: `${SYSTEM_INSTRUCTIONS}\n\nKnown user fields:\n${knownFields}`,
+      content: `${getSystemInstructions()}\n\nKnown user fields:\n${knownFields}`,
     },
     ...history,
     {

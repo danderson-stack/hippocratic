@@ -13,12 +13,10 @@ export interface Thread {
 
 export interface UserProfile {
   id: string;
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   phone?: string;
-  symptoms?: string;
-  preferredDate?: string;
-  preferredTime?: string;
   [key: string]: unknown;
 }
 
@@ -31,6 +29,6 @@ export interface AgentResponsePayload {
 
 export interface QueryRequestBody {
   user: UserProfile;
-  thread: Thread;
+  thread?: Thread;
   message: string;
 }
