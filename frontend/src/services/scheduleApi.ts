@@ -43,7 +43,7 @@ export async function sendMessage(
   threadId: string | undefined,
   content: string
 ): Promise<Thread> {
-  const response = await fetch("/api/query", {
+  const response = await fetch("http://localhost:3000/api/query", {
     method: "POST",
     headers: buildHeaders(),
     body: JSON.stringify({

@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { sendMessage } from "../services/scheduleApi";
 import type { ThreadMessage } from "../services/scheduleApi";
 
+const PENDING_AGENT_MESSAGE = "Agent is typing...";
+
 function SchedulePage() {
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [threadId, setThreadId] = useState<string | undefined>();
@@ -9,6 +11,7 @@ function SchedulePage() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
+  const pendingAgentIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (threadRef.current) {
@@ -21,18 +24,58 @@ function SchedulePage() {
     if (!trimmed || isSending) return;
     setIsSending(true);
     setError(null);
+
+    const optimisticUserMessage: ThreadMessage = {
+      role: "user",
+      content: trimmed,
+    };
+
+    const pendingAgentMessage: ThreadMessage = {
+      role: "assistant",
+      content: PENDING_AGENT_MESSAGE,
+    };
+
+    setMessages((previousMessages) => {
+      const nextMessages = [
+        ...previousMessages,
+        optimisticUserMessage,
+        pendingAgentMessage,
+      ];
+      pendingAgentIndexRef.current = nextMessages.length - 1;
+      return nextMessages;
+    });
+
     setInputValue("");
 
     try {
       const updatedThread = await sendMessage(threadId, trimmed);
       setThreadId(updatedThread.id);
       setMessages(updatedThread.messages || []);
+      pendingAgentIndexRef.current = null;
     } catch (sendError) {
       const message =
         sendError instanceof Error
           ? sendError.message
           : "Failed to send message";
       setError(message);
+      setMessages((previousMessages) => {
+        if (
+          previousMessages.length === 0 ||
+          pendingAgentIndexRef.current === null
+        ) {
+          return previousMessages;
+        }
+
+        return previousMessages.map((threadMessage, index) =>
+          index === pendingAgentIndexRef.current
+            ? {
+                ...threadMessage,
+                content: "Unable to reach the agent. Please try again.",
+              }
+            : threadMessage
+        );
+      });
+      pendingAgentIndexRef.current = null;
     } finally {
       setIsSending(false);
     }
@@ -41,13 +84,13 @@ function SchedulePage() {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      handleSend();
+      void handleSend();
     }
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    handleSend();
+    void handleSend();
   };
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,7 +151,8 @@ function SchedulePage() {
               key={`${message.role}-${index}-${message.timestamp ?? ""}`}
               style={{
                 display: "flex",
-                justifyContent: message.role === "user" ? "flex-start" : "flex-end",
+                justifyContent:
+                  message.role === "user" ? "flex-start" : "flex-end",
               }}
             >
               <div
@@ -116,19 +160,28 @@ function SchedulePage() {
                   maxWidth: "70%",
                   padding: "12px",
                   borderRadius: "8px",
-                  backgroundColor: message.role === "user" ? "#e8f0fe" : "#e0f7e9",
+                  backgroundColor:
+                    message.role === "user" ? "#e8f0fe" : "#e0f7e9",
                   boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
                   whiteSpace: "pre-wrap",
                 }}
               >
-                <div style={{ fontWeight: 600, marginBottom: "4px", fontSize: "0.9rem" }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    marginBottom: "4px",
+                    fontSize: "0.9rem",
+                  }}
+                >
                   {message.role === "user"
                     ? "User"
                     : message.role === "assistant"
                     ? "Agent"
                     : "System"}
                 </div>
-                <div style={{ fontSize: "1rem", lineHeight: 1.5 }}>{message.content}</div>
+                <div style={{ fontSize: "1rem", lineHeight: 1.5 }}>
+                  {message.content}
+                </div>
               </div>
             </div>
           ))
@@ -162,14 +215,17 @@ function SchedulePage() {
         />
         <button
           type="submit"
-          onClick={handleSend}
+          onClick={() => {
+            void handleSend();
+          }}
           disabled={isSending || !inputValue.trim()}
           style={{
             minWidth: "120px",
             padding: "12px 16px",
             borderRadius: "8px",
             border: "none",
-            backgroundColor: isSending || !inputValue.trim() ? "#9e9e9e" : "#1976d2",
+            backgroundColor:
+              isSending || !inputValue.trim() ? "#9e9e9e" : "#1976d2",
             color: "white",
             cursor: isSending || !inputValue.trim() ? "not-allowed" : "pointer",
             display: "flex",
