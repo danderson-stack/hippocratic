@@ -20,6 +20,17 @@ export interface UserProfile {
   [key: string]: unknown;
 }
 
+export interface Appointment {
+  id: string;
+  userId: string;
+  threadId: string;
+  status?: string;
+  scheduledFor?: string;
+  summary?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AgentResponsePayload {
   assistantMessage: string;
   userUpdate?: Partial<UserProfile>;

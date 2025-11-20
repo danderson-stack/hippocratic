@@ -11,6 +11,6 @@
     "outDir": "dist",
     "types": ["node"]
   },
-  "include": ["**/*.ts", "**/*.js"],
+  "include": ["**/*.ts", "**/*.js", "**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 
 type RouteMatch = { matches: boolean; params: Record<string, string> };
 
@@ -108,7 +108,15 @@ export function Route(props: RouteProps) {
   return <>{props.element}</>;
 }
 
-export function Link({ to, children }: { to: string; children: ReactNode }) {
+export function Link({
+  to,
+  children,
+  style,
+}: {
+  to: string;
+  children: ReactNode;
+  style?: CSSProperties;
+}) {
   const router = useContext(RouterContext);
 
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -117,7 +125,7 @@ export function Link({ to, children }: { to: string; children: ReactNode }) {
   };
 
   return (
-    <a href={to} onClick={handleClick}>
+    <a href={to} onClick={handleClick} style={style}>
       {children}
     </a>
   );

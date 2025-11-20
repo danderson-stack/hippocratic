@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "ts-node server.ts",
-    "build": "tsc"
+    "build": "tsc -p tsConfig.json"
   },
   "dependencies": {
     "cookie-parser": "~1.4.4",

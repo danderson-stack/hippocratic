@@ -24,7 +24,7 @@ const mergeUserUpdate = (
   ...(updates || {}),
 });
 
-router.post("/", async (req, res) => {
+router.post("/", async (req: any, res: any) => {
   const { user, thread, message } = req.body as QueryRequestBody;
 
   console.log(`[ROUTE] Received message from user ${user?.id}: "${message}"`);
@@ -95,7 +95,11 @@ router.post("/", async (req, res) => {
 
     if (agentResponse.scheduleAppointment) {
       try {
-        await scheduleAppointment(updatedUser);
+        await scheduleAppointment({
+          user: updatedUser,
+          threadId: activeThreadId,
+          summary: message,
+        });
       } catch (scheduleError) {
         console.error("Failed to schedule appointment:", scheduleError);
       }

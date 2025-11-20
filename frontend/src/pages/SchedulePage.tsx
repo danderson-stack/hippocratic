@@ -1,11 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  Button,
-  CircularProgress,
-  TextField,
-  Typography,
-  Box,
-} from "@mui/material";
 
 interface ChatMessage {
   id: number;
@@ -75,101 +68,117 @@ function SchedulePage() {
   };
 
   return (
-    <Box
-      sx={{
+    <div
+      style={{
         display: "flex",
         flexDirection: "column",
-        padding: 2,
-        gap: 2,
+        padding: "1.5rem",
+        gap: "1rem",
+        maxWidth: "960px",
+        margin: "0 auto",
       }}
     >
-      <Typography variant="h4" component="h1" sx={{ textAlign: "center" }}>
+      <h1 style={{ textAlign: "center", margin: 0 }}>
         Hippocratic Appointment Schedule Agent
-      </Typography>
+      </h1>
 
-      <Box
+      <div
         ref={threadRef}
-        sx={{
-          flex: 1,
+        style={{
           display: "flex",
           flexDirection: "column",
-          gap: 1,
-          padding: 2,
+          gap: "0.75rem",
+          padding: "1rem",
           border: "1px solid #e0e0e0",
-          borderRadius: 1,
+          borderRadius: "8px",
           overflowY: "auto",
           backgroundColor: "#fafafa",
+          minHeight: "320px",
         }}
       >
         {messages.map((message) => (
-          <Box
+          <div
             key={message.id}
-            sx={{
+            style={{
               display: "flex",
               justifyContent:
                 message.sender === "user" ? "flex-start" : "flex-end",
             }}
           >
-            <Box
-              sx={{
+            <div
+              style={{
                 maxWidth: "70%",
-                padding: 1.5,
-                borderRadius: 1,
+                padding: "0.9rem",
+                borderRadius: "10px",
                 backgroundColor:
                   message.sender === "user" ? "#e8f0fe" : "#e0f7e9",
                 boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
               }}
             >
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              <div style={{ fontWeight: 600, marginBottom: "0.35rem" }}>
                 {message.sender === "user" ? "User" : "Agent"}
-              </Typography>
-              <Typography variant="body1">{message.content}</Typography>
-            </Box>
-          </Box>
+              </div>
+              <p style={{ margin: 0 }}>{message.content}</p>
+            </div>
+          </div>
         ))}
-      </Box>
+      </div>
 
-      <Box
-        component="form"
-        onSubmit={(event) => {
+      <form
+        onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
           event.preventDefault();
           handleSend();
         }}
-        sx={{
+        style={{
           display: "flex",
           alignItems: "center",
-          gap: 1.5,
+          gap: "0.75rem",
           borderTop: "1px solid #e0e0e0",
-          paddingTop: 1,
+          paddingTop: "0.75rem",
         }}
       >
-        <TextField
-          fullWidth
-          variant="outlined"
-          label="Add a message"
+        <input
+          aria-label="Add a message"
           value={inputValue}
-          onChange={(event) => setInputValue(event.target.value)}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+            setInputValue(event.target.value)
+          }
           onKeyDown={handleKeyDown}
           disabled={isSending}
+          style={{
+            flex: 1,
+            padding: "0.75rem",
+            borderRadius: "6px",
+            border: "1px solid #d1d5db",
+            fontSize: "1rem",
+          }}
         />
-        <Button
-          variant="contained"
-          color="primary"
+        <button
+          type="button"
           onClick={handleSend}
           disabled={isSending || !inputValue.trim()}
-          sx={{ minWidth: 120, display: "flex", gap: 1, alignItems: "center" }}
+          style={{
+            minWidth: "120px",
+            display: "inline-flex",
+            gap: "0.5rem",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0.75rem 1rem",
+            backgroundColor: isSending || !inputValue.trim() ? "#9ca3af" : "#2563eb",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: isSending || !inputValue.trim() ? "not-allowed" : "pointer",
+          }}
         >
           {isSending ? (
-            <>
-              <CircularProgress size={20} color="inherit" />
-              Sending...
-            </>
+            "Sending..."
           ) : (
             "Send"
           )}
-        </Button>
-      </Box>
-    </Box>
+        </button>
+      </form>
+    </div>
   );
 }
 
