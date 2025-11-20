@@ -99,12 +99,14 @@ export default function AdminAppointmentDetailPage() {
   );
 
   return (
-    <main style={{ margin: "0 auto", maxWidth: "1100px", padding: "1.5rem" }}>
+    <main className="page-card" style={{ display: "grid", gap: "14px" }}>
       <header style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
         <Link to="/admin/appointments" style={{ textDecoration: "none" }}>
           ← Back to appointments
         </Link>
-        <h1 style={{ margin: 0 }}>Appointment Details</h1>
+        <h1 className="page-title" style={{ margin: 0 }}>
+          Appointment Details
+        </h1>
       </header>
 
       {loading && <p>Loading appointment...</p>}

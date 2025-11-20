@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   Children,
   createContext,
@@ -108,6 +109,7 @@ export function Routes({ children }: RoutesProps) {
 
   const childArray = Children.toArray(children) as RouteElement[];
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const matchedRoute = useMemo(() => {
     for (const child of childArray) {
       if (!isValidElement<RouteProps>(child)) continue;
@@ -163,4 +165,14 @@ export function useParams() {
   }
 
   return router.params;
+}
+
+export function useLocation() {
+  const router = useContext(RouterContext);
+
+  if (!router) {
+    throw new Error("useLocation must be used within a BrowserRouter");
+  }
+
+  return { pathname: router.path };
 }

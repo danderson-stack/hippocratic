@@ -94,12 +94,12 @@ export default function AdminAppointmentsPage() {
   );
 
   return (
-    <main
-      style={{ margin: "0 auto", maxWidth: "960px", padding: "2rem 1.5rem" }}
-    >
-      <header style={{ marginBottom: "1.5rem" }}>
-        <p style={{ margin: 0 }}>Breadcrumbs: Home / Admin / Appointments</p>
-        <h1 style={{ margin: "0.25rem 0 0" }}>Appointments</h1>
+    <main className="page-card" style={{ display: "grid", gap: "12px" }}>
+      <header className="page-header">
+        <div>
+          <p className="breadcrumbs">Breadcrumbs: Home / Admin / Appointments</p>
+          <h1 className="page-title">Appointments</h1>
+        </div>
       </header>
 
       {loading && <p>Loading appointments...</p>}
@@ -112,76 +112,78 @@ export default function AdminAppointmentsPage() {
           {rows.length === 0 ? (
             <p>No appointments available.</p>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      borderBottom: "1px solid #e5e7eb",
-                      padding: "0.5rem",
-                    }}
-                  >
-                    Time
-                  </th>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      borderBottom: "1px solid #e5e7eb",
-                      padding: "0.5rem",
-                    }}
-                  >
-                    Patient
-                  </th>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      borderBottom: "1px solid #e5e7eb",
-                      padding: "0.5rem",
-                    }}
-                  >
-                    Summary
-                  </th>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      borderBottom: "1px solid #e5e7eb",
-                      padding: "0.5rem",
-                    }}
-                  >
-                    Details
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((appointment) => (
-                  <tr
-                    key={appointment.id}
-                    style={{ borderBottom: "1px solid #f3f4f6" }}
-                  >
-                    <td style={{ padding: "0.5rem" }}>
-                      {formatDate(appointment.time)}
-                    </td>
-                    <td style={{ padding: "0.5rem" }}>{appointment.patient}</td>
-                    <td style={{ padding: "0.5rem" }}>{appointment.summary}</td>
-                    <td style={{ padding: "0.5rem" }}>
-                      <Link
-                        to={`/admin/appointments/${appointment.id}`}
-                        style={{
-                          display: "inline-block",
-                          padding: "0.35rem 0.6rem",
-                          border: "1px solid #d1d5db",
-                          borderRadius: "4px",
-                          textDecoration: "none",
-                        }}
-                      >
-                        Details
-                      </Link>
-                    </td>
+            <div className="table-card">
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        borderBottom: "1px solid #e5e7eb",
+                        padding: "0.5rem",
+                      }}
+                    >
+                      Time
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        borderBottom: "1px solid #e5e7eb",
+                        padding: "0.5rem",
+                      }}
+                    >
+                      Patient
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        borderBottom: "1px solid #e5e7eb",
+                        padding: "0.5rem",
+                      }}
+                    >
+                      Summary
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        borderBottom: "1px solid #e5e7eb",
+                        padding: "0.5rem",
+                      }}
+                    >
+                      Details
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((appointment) => (
+                    <tr
+                      key={appointment.id}
+                      style={{ borderBottom: "1px solid #f3f4f6" }}
+                    >
+                      <td style={{ padding: "0.5rem" }}>
+                        {formatDate(appointment.time)}
+                      </td>
+                      <td style={{ padding: "0.5rem" }}>{appointment.patient}</td>
+                      <td style={{ padding: "0.5rem" }}>{appointment.summary}</td>
+                      <td style={{ padding: "0.5rem" }}>
+                        <Link
+                          to={`/admin/appointments/${appointment.id}`}
+                          style={{
+                            display: "inline-block",
+                            padding: "0.35rem 0.6rem",
+                            border: "1px solid #d1d5db",
+                            borderRadius: "4px",
+                            textDecoration: "none",
+                          }}
+                        >
+                          Details
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

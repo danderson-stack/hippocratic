@@ -130,13 +130,13 @@ function SchedulePage() {
 
   return (
     <div
+      className="page-card"
       style={{
         display: "flex",
         flexDirection: "column",
         gap: "16px",
-        padding: "16px",
-        height: "100vh",
-        boxSizing: "border-box",
+        padding: "20px",
+        minHeight: "70vh",
       }}
     >
       <h1 style={{ textAlign: "center", margin: 0 }}>
