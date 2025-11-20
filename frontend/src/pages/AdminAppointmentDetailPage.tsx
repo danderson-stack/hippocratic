@@ -56,9 +56,12 @@ export default function AdminAppointmentDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/appointments/${id}`, {
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          `http://localhost:3000/api/appointments/${id}`,
+          {
+            signal: controller.signal,
+          }
+        );
 
         if (!response.ok) {
           throw new Error(`Unable to load appointment (${response.status})`);
@@ -112,9 +115,29 @@ export default function AdminAppointmentDetailPage() {
       )}
 
       {!loading && !error && (
-        <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start", marginTop: "1rem" }}>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <section style={{ padding: "1rem", border: "1px solid #e5e7eb", borderRadius: "6px" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "1rem",
+            alignItems: "flex-start",
+            marginTop: "1rem",
+          }}
+        >
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+            }}
+          >
+            <section
+              style={{
+                padding: "1rem",
+                border: "1px solid #e5e7eb",
+                borderRadius: "6px",
+              }}
+            >
               <h2 style={{ marginTop: 0 }}>Appointment Info</h2>
               {appointment ? (
                 <dl style={{ margin: 0 }}>
@@ -124,15 +147,21 @@ export default function AdminAppointmentDetailPage() {
                   </div>
                   <div style={{ marginBottom: "0.35rem" }}>
                     <dt style={{ fontWeight: 600 }}>Status</dt>
-                    <dd style={{ margin: 0 }}>{appointment.status ?? "Unknown"}</dd>
+                    <dd style={{ margin: 0 }}>
+                      {appointment.status ?? "Unknown"}
+                    </dd>
                   </div>
                   <div style={{ marginBottom: "0.35rem" }}>
                     <dt style={{ fontWeight: 600 }}>Scheduled For</dt>
-                    <dd style={{ margin: 0 }}>{formatDate(appointment.scheduled_for)}</dd>
+                    <dd style={{ margin: 0 }}>
+                      {formatDate(appointment.scheduled_for)}
+                    </dd>
                   </div>
                   <div style={{ marginBottom: "0.35rem" }}>
                     <dt style={{ fontWeight: 600 }}>Reason</dt>
-                    <dd style={{ margin: 0 }}>{appointment.reason ?? "Not specified"}</dd>
+                    <dd style={{ margin: 0 }}>
+                      {appointment.reason ?? "Not specified"}
+                    </dd>
                   </div>
                 </dl>
               ) : (
@@ -140,7 +169,13 @@ export default function AdminAppointmentDetailPage() {
               )}
             </section>
 
-            <section style={{ padding: "1rem", border: "1px solid #e5e7eb", borderRadius: "6px" }}>
+            <section
+              style={{
+                padding: "1rem",
+                border: "1px solid #e5e7eb",
+                borderRadius: "6px",
+              }}
+            >
               <h2 style={{ marginTop: 0 }}>Patient Info</h2>
               {user ? (
                 <dl style={{ margin: 0 }}>
@@ -150,11 +185,15 @@ export default function AdminAppointmentDetailPage() {
                   </div>
                   <div style={{ marginBottom: "0.35rem" }}>
                     <dt style={{ fontWeight: 600 }}>Email</dt>
-                    <dd style={{ margin: 0 }}>{user.email ?? "Not provided"}</dd>
+                    <dd style={{ margin: 0 }}>
+                      {user.email ?? "Not provided"}
+                    </dd>
                   </div>
                   <div style={{ marginBottom: "0.35rem" }}>
                     <dt style={{ fontWeight: 600 }}>Phone</dt>
-                    <dd style={{ margin: 0 }}>{user.phone ?? "Not provided"}</dd>
+                    <dd style={{ margin: 0 }}>
+                      {user.phone ?? "Not provided"}
+                    </dd>
                   </div>
                   <div>
                     <dt style={{ fontWeight: 600 }}>User ID</dt>
@@ -167,18 +206,35 @@ export default function AdminAppointmentDetailPage() {
             </section>
           </div>
 
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <section style={{ padding: "1rem", border: "1px solid #e5e7eb", borderRadius: "6px" }}>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+            }}
+          >
+            <section
+              style={{
+                padding: "1rem",
+                border: "1px solid #e5e7eb",
+                borderRadius: "6px",
+              }}
+            >
               <h2 style={{ marginTop: 0 }}>Transaction Details</h2>
               {appointment ? (
                 <dl style={{ margin: 0 }}>
                   <div style={{ marginBottom: "0.35rem" }}>
                     <dt style={{ fontWeight: 600 }}>Created</dt>
-                    <dd style={{ margin: 0 }}>{formatDate(appointment.created_at)}</dd>
+                    <dd style={{ margin: 0 }}>
+                      {formatDate(appointment.created_at)}
+                    </dd>
                   </div>
                   <div style={{ marginBottom: "0.35rem" }}>
                     <dt style={{ fontWeight: 600 }}>Updated</dt>
-                    <dd style={{ margin: 0 }}>{formatDate(appointment.updated_at)}</dd>
+                    <dd style={{ margin: 0 }}>
+                      {formatDate(appointment.updated_at)}
+                    </dd>
                   </div>
                 </dl>
               ) : (
@@ -186,24 +242,50 @@ export default function AdminAppointmentDetailPage() {
               )}
             </section>
 
-            <section style={{ padding: "1rem", border: "1px solid #e5e7eb", borderRadius: "6px" }}>
+            <section
+              style={{
+                padding: "1rem",
+                border: "1px solid #e5e7eb",
+                borderRadius: "6px",
+              }}
+            >
               <h2 style={{ marginTop: 0 }}>Transcript / Messages</h2>
               {sortedMessages.length ? (
-                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.75rem" }}>
+                <ul
+                  style={{
+                    listStyle: "none",
+                    padding: 0,
+                    margin: 0,
+                    display: "grid",
+                    gap: "0.75rem",
+                  }}
+                >
                   {sortedMessages.map((message) => (
                     <li
                       key={message.id}
-                      style={{ border: "1px solid #f3f4f6", borderRadius: "6px", padding: "0.75rem" }}
+                      style={{
+                        border: "1px solid #f3f4f6",
+                        borderRadius: "6px",
+                        padding: "0.75rem",
+                      }}
                     >
                       <header
-                        style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem" }}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "0.35rem",
+                        }}
                       >
                         <span style={{ fontWeight: 600 }}>
                           {message.sender || message.role || "Unknown sender"}
                         </span>
-                        <span style={{ color: "#6b7280" }}>{formatDate(message.created_at)}</span>
+                        <span style={{ color: "#6b7280" }}>
+                          {formatDate(message.created_at)}
+                        </span>
                       </header>
-                      <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{message.content}</p>
+                      <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>
+                        {message.content}
+                      </p>
                     </li>
                   ))}
                 </ul>

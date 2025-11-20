@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useScheduleApi } from "../services/scheduleApi";
 import type { ThreadMessage } from "../services/scheduleApi";
 
@@ -7,6 +7,7 @@ const PENDING_AGENT_MESSAGE = "Agent is typing...";
 function SchedulePage() {
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [threadId, setThreadId] = useState<string | undefined>();
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,11 +21,12 @@ function SchedulePage() {
     }
   }, [messages]);
 
-  const handleSend = async () => {
-    const trimmed = inputValue.trim();
+  const sendMessage = async (content: string, selectedSlot?: string) => {
+    const trimmed = content.trim();
     if (!trimmed || isSending) return;
     setIsSending(true);
     setError(null);
+    setAvailableSlots([]);
 
     const optimisticUserMessage: ThreadMessage = {
       role: "user",
@@ -49,9 +51,10 @@ function SchedulePage() {
     setInputValue("");
 
     try {
-      const updatedThread = await send(threadId, trimmed);
-      setThreadId(updatedThread.id);
-      setMessages(updatedThread.messages || []);
+      const response = await send(threadId, trimmed, selectedSlot);
+      setThreadId(response.thread.id);
+      setMessages(response.thread.messages || []);
+      setAvailableSlots(response.availableSlots || []);
       pendingAgentIndexRef.current = null;
     } catch (sendError) {
       const message =
@@ -76,11 +79,38 @@ function SchedulePage() {
             : threadMessage
         );
       });
+      setAvailableSlots([]);
       pendingAgentIndexRef.current = null;
     } finally {
       setIsSending(false);
     }
   };
+
+  const handleSend = async () => {
+    await sendMessage(inputValue);
+  };
+
+  const handleSlotSelection = (slot: string, label: string) => {
+    const confirmationMessage = `I'd like to book the appointment at ${label}.`;
+    void sendMessage(confirmationMessage, slot);
+  };
+
+  const formatSlot = useMemo(() => {
+    return (slot: string) => {
+      const date = new Date(slot);
+      if (Number.isNaN(date.getTime())) {
+        return slot;
+      }
+
+      return new Intl.DateTimeFormat(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(date);
+    };
+  }, []);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -147,45 +177,94 @@ function SchedulePage() {
             Send a message to start the conversation.
           </p>
         ) : (
-          messages.map((message, index) => (
-            <div
-              key={`${message.role}-${index}-${message.timestamp ?? ""}`}
-              style={{
-                display: "flex",
-                justifyContent:
-                  message.role === "user" ? "flex-start" : "flex-end",
-              }}
-            >
+          messages.map((message, index) => {
+            const showAvailableSlots =
+              availableSlots.length > 0 &&
+              message.role === "assistant" &&
+              index === messages.length - 1;
+
+            return (
               <div
+                key={`${message.role}-${index}-${message.timestamp ?? ""}`}
                 style={{
-                  maxWidth: "70%",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  backgroundColor:
-                    message.role === "user" ? "#e8f0fe" : "#e0f7e9",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-                  whiteSpace: "pre-wrap",
+                  display: "flex",
+                  justifyContent:
+                    message.role === "user" ? "flex-start" : "flex-end",
                 }}
               >
                 <div
                   style={{
-                    fontWeight: 600,
-                    marginBottom: "4px",
-                    fontSize: "0.9rem",
+                    maxWidth: "70%",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    backgroundColor:
+                      message.role === "user" ? "#e8f0fe" : "#e0f7e9",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                    whiteSpace: "pre-wrap",
                   }}
                 >
-                  {message.role === "user"
-                    ? "User"
-                    : message.role === "assistant"
-                    ? "Agent"
-                    : "System"}
-                </div>
-                <div style={{ fontSize: "1rem", lineHeight: 1.5 }}>
-                  {message.content}
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      marginBottom: "4px",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    {message.role === "user"
+                      ? "User"
+                      : message.role === "assistant"
+                      ? "Agent"
+                      : "System"}
+                  </div>
+                  <div style={{ fontSize: "1rem", lineHeight: 1.5 }}>
+                    {message.content}
+                  </div>
+                  {showAvailableSlots && (
+                    <div style={{ marginTop: "12px" }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          marginBottom: "8px",
+                        }}
+                      >
+                        Available appointments:
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "8px",
+                        }}
+                      >
+                        {availableSlots.map((slot) => {
+                          const label = formatSlot(slot);
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => handleSlotSelection(slot, label)}
+                              disabled={isSending}
+                              style={{
+                                padding: "10px 12px",
+                                borderRadius: "6px",
+                                border: "1px solid #1976d2",
+                                backgroundColor: "#e3f2fd",
+                                color: "#0d47a1",
+                                cursor: isSending ? "not-allowed" : "pointer",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

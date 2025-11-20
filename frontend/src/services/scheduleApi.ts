@@ -12,10 +12,12 @@ export interface ThreadMessage {
 export interface Thread {
   id: string;
   messages: ThreadMessage[];
+  status?: string;
 }
 
-interface QueryResponse {
+export interface QueryResponse {
   thread: Thread;
+  availableSlots?: string[];
 }
 
 const isThread = (value: unknown): value is Thread => {
@@ -44,8 +46,9 @@ const buildHeaders = () => ({
 
 export async function sendMessage(
   threadId: string | undefined,
-  content: string
-): Promise<Thread> {
+  content: string,
+  selectedSlot?: string
+): Promise<QueryResponse> {
   const response = await fetch(`${API_BASE_URL}/api/query`, {
     method: "POST",
     headers: buildHeaders(),
@@ -53,6 +56,7 @@ export async function sendMessage(
       user: { id: getOrCreateUserId() },
       thread: threadId ? { id: threadId } : undefined,
       message: content,
+      selectedSlot,
     }),
   });
 
@@ -66,7 +70,7 @@ export async function sendMessage(
     throw new Error("Missing thread information in response");
   }
 
-  return data.thread;
+  return data;
 }
 
 export async function getThread(threadId: string): Promise<Thread> {
@@ -93,9 +97,16 @@ export async function getThread(threadId: string): Promise<Thread> {
 }
 
 export const useScheduleApi = () => {
-  const send = useCallback(async (threadId: string | undefined, content: string) => {
-    return sendMessage(threadId, content);
-  }, []);
+  const send = useCallback(
+    async (
+      threadId: string | undefined,
+      content: string,
+      selectedSlot?: string
+    ) => {
+      return sendMessage(threadId, content, selectedSlot);
+    },
+    []
+  );
 
   return { send };
 };

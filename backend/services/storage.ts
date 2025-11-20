@@ -160,6 +160,11 @@ export const getThreadMessages = (threadId: string): ThreadMessage[] => {
   }));
 };
 
+export const getThreadMessagesWithIds = (threadId: string): MessageRecord[] => {
+  const threadMessages = messages.get(threadId) ?? [];
+  return threadMessages.map((message) => ({ ...message }));
+};
+
 export const getOrCreateThreadForUser = (params: {
   userId: string;
   threadId?: string;
@@ -188,7 +193,21 @@ export const getThreadStatus = (threadId: string): ThreadStatus => {
   return record.status;
 };
 
+export const getThreadSummary = (
+  threadId: string
+): (ThreadRecord & { userId: string }) | undefined => {
+  const record = threads.get(threadId);
+  if (!record) return undefined;
+
+  return { ...record };
+};
+
 export const getAppointments = (): Appointment[] => [...appointments];
+
+export const findAppointmentById = (
+  appointmentId: string
+): Appointment | undefined =>
+  appointments.find((appointment) => appointment.id === appointmentId);
 
 export const createAppointment = (appointment: {
   userId: string;

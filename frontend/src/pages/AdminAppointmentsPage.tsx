@@ -34,7 +34,9 @@ const normalizeAppointments = (payload: unknown): AppointmentListItem[] => {
   if (
     payload &&
     typeof payload === "object" &&
-    Array.isArray((payload as { appointments?: AppointmentListItem[] }).appointments)
+    Array.isArray(
+      (payload as { appointments?: AppointmentListItem[] }).appointments
+    )
   ) {
     return (payload as { appointments: AppointmentListItem[] }).appointments;
   }
@@ -53,7 +55,7 @@ export default function AdminAppointmentsPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch("/api/appointments", {
+        const response = await fetch("http://localhost:3000/api/appointments", {
           signal: controller.signal,
         });
 
@@ -92,14 +94,18 @@ export default function AdminAppointmentsPage() {
   );
 
   return (
-    <main style={{ margin: "0 auto", maxWidth: "960px", padding: "2rem 1.5rem" }}>
+    <main
+      style={{ margin: "0 auto", maxWidth: "960px", padding: "2rem 1.5rem" }}
+    >
       <header style={{ marginBottom: "1.5rem" }}>
         <p style={{ margin: 0 }}>Breadcrumbs: Home / Admin / Appointments</p>
         <h1 style={{ margin: "0.25rem 0 0" }}>Appointments</h1>
       </header>
 
       {loading && <p>Loading appointments...</p>}
-      {error && <p style={{ color: "red" }}>Unable to load appointments: {error}</p>}
+      {error && (
+        <p style={{ color: "red" }}>Unable to load appointments: {error}</p>
+      )}
 
       {!loading && !error && (
         <div>
@@ -109,24 +115,53 @@ export default function AdminAppointmentsPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "0.5rem" }}>
+                  <th
+                    style={{
+                      textAlign: "left",
+                      borderBottom: "1px solid #e5e7eb",
+                      padding: "0.5rem",
+                    }}
+                  >
                     Time
                   </th>
-                  <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "0.5rem" }}>
+                  <th
+                    style={{
+                      textAlign: "left",
+                      borderBottom: "1px solid #e5e7eb",
+                      padding: "0.5rem",
+                    }}
+                  >
                     Patient
                   </th>
-                  <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "0.5rem" }}>
+                  <th
+                    style={{
+                      textAlign: "left",
+                      borderBottom: "1px solid #e5e7eb",
+                      padding: "0.5rem",
+                    }}
+                  >
                     Summary
                   </th>
-                  <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "0.5rem" }}>
+                  <th
+                    style={{
+                      textAlign: "left",
+                      borderBottom: "1px solid #e5e7eb",
+                      padding: "0.5rem",
+                    }}
+                  >
                     Details
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((appointment) => (
-                  <tr key={appointment.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                    <td style={{ padding: "0.5rem" }}>{formatDate(appointment.time)}</td>
+                  <tr
+                    key={appointment.id}
+                    style={{ borderBottom: "1px solid #f3f4f6" }}
+                  >
+                    <td style={{ padding: "0.5rem" }}>
+                      {formatDate(appointment.time)}
+                    </td>
                     <td style={{ padding: "0.5rem" }}>{appointment.patient}</td>
                     <td style={{ padding: "0.5rem" }}>{appointment.summary}</td>
                     <td style={{ padding: "0.5rem" }}>

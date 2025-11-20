@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createAppointment = exports.getAppointments = exports.getThreadStatus = exports.getThreadWithMessages = exports.getOrCreateThreadForUser = exports.getThreadMessages = exports.recordMessage = exports.updateThreadStatus = exports.getUserProfile = exports.upsertUserProfile = void 0;
+exports.createAppointment = exports.findAppointmentById = exports.getAppointments = exports.getThreadSummary = exports.getThreadStatus = exports.getThreadWithMessages = exports.getOrCreateThreadForUser = exports.getThreadMessagesWithIds = exports.getThreadMessages = exports.recordMessage = exports.updateThreadStatus = exports.getUserProfile = exports.upsertUserProfile = void 0;
 const crypto_1 = require("crypto");
 const users = new Map();
 const threads = new Map();
@@ -105,6 +105,11 @@ const getThreadMessages = (threadId) => {
     }));
 };
 exports.getThreadMessages = getThreadMessages;
+const getThreadMessagesWithIds = (threadId) => {
+    const threadMessages = messages.get(threadId) ?? [];
+    return threadMessages.map((message) => ({ ...message }));
+};
+exports.getThreadMessagesWithIds = getThreadMessagesWithIds;
 const getOrCreateThreadForUser = (params) => ensureThreadRecord(params.userId, params.threadId);
 exports.getOrCreateThreadForUser = getOrCreateThreadForUser;
 const getThreadWithMessages = (threadId) => {
@@ -127,8 +132,17 @@ const getThreadStatus = (threadId) => {
     return record.status;
 };
 exports.getThreadStatus = getThreadStatus;
+const getThreadSummary = (threadId) => {
+    const record = threads.get(threadId);
+    if (!record)
+        return undefined;
+    return { ...record };
+};
+exports.getThreadSummary = getThreadSummary;
 const getAppointments = () => [...appointments];
 exports.getAppointments = getAppointments;
+const findAppointmentById = (appointmentId) => appointments.find((appointment) => appointment.id === appointmentId);
+exports.findAppointmentById = findAppointmentById;
 const createAppointment = (appointment) => {
     const now = new Date().toISOString();
     const record = {
