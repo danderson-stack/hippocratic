@@ -64,7 +64,22 @@ const formatMessageSender = (role: string | undefined) => {
 router.get("/", (_req, res) => {
   const appointments = getAppointments().map((appointment) => {
     const thread = getThreadSummary(appointment.threadId);
-    return formatAppointment(appointment, thread?.status, thread?.updatedAt);
+    const user = getUserProfile(appointment.userId);
+    const formattedUser = formatUser(user);
+
+    const formattedAppointment = formatAppointment(
+      appointment,
+      thread?.status,
+      thread?.updatedAt
+    );
+
+    return {
+      ...formattedAppointment,
+      user: formattedUser,
+      patient_name: formattedUser?.name,
+      patient_email: formattedUser?.email,
+      patient_phone: formattedUser?.phone,
+    };
   });
 
   return res.json({ appointments });

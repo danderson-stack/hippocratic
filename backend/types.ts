@@ -18,6 +18,7 @@ export interface UserProfile {
   lastName?: string;
   email?: string;
   phone?: string;
+  summary?: string;
   [key: string]: unknown;
 }
 
