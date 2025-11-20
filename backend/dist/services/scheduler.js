@@ -11,9 +11,11 @@ const getDayStart = (date) => {
     copy.setHours(0, 0, 0, 0);
     return copy;
 };
-const hasConflict = (slotStart, appointments) => {
+const hasConflict = (slotStart, appointments, options) => {
     const slotEnd = addMinutes(slotStart, SLOT_DURATION_MINUTES);
     return appointments.some((appointment) => {
+        if (options?.ignoreThreadId && appointment.threadId === options.ignoreThreadId)
+            return false;
         const appointmentStart = new Date(appointment.start);
         const appointmentEnd = new Date(appointment.end);
         return slotStart < appointmentEnd && slotEnd > appointmentStart;
@@ -61,7 +63,7 @@ const createAppointment = ({ user, threadId, slotStart, durationMinutes = SLOT_D
     if (Number.isNaN(startDate.getTime())) {
         throw new Error("Invalid slot start time");
     }
-    if (hasConflict(startDate, (0, storage_1.getAppointments)())) {
+    if (hasConflict(startDate, (0, storage_1.getAppointments)(), { ignoreThreadId: threadId })) {
         throw new Error("Slot is no longer available");
     }
     const endDate = addMinutes(startDate, durationMinutes);

@@ -30,6 +30,7 @@ const formatUser = (user) => {
         name: fullName || undefined,
         email: user.email,
         phone: user.phone,
+        summary: user.summary,
     };
 };
 const formatMessageSender = (role) => {
@@ -47,7 +48,19 @@ const formatMessageSender = (role) => {
 router.get("/", (_req, res) => {
     const appointments = (0, storage_1.getAppointments)().map((appointment) => {
         const thread = (0, storage_1.getThreadSummary)(appointment.threadId);
-        return formatAppointment(appointment, thread?.status, thread?.updatedAt);
+        const user = (0, storage_1.getUserProfile)(appointment.userId);
+        const formattedUser = formatUser(user);
+        const formattedAppointment = formatAppointment(appointment, thread?.status, thread?.updatedAt);
+        const reason = user?.summary;
+        return {
+            ...formattedAppointment,
+            user: formattedUser,
+            patient_name: formattedUser?.name,
+            patient_email: formattedUser?.email,
+            patient_phone: formattedUser?.phone,
+            reason,
+            summary: reason,
+        };
     });
     return res.json({ appointments });
 });
@@ -65,8 +78,14 @@ router.get("/:id", (req, res) => {
         created_at: message.timestamp,
         sender: formatMessageSender(message.role),
     }));
+    const reason = user?.summary;
+    const formattedAppointment = formatAppointment(appointment, thread?.status, thread?.updatedAt);
     return res.json({
-        appointment: formatAppointment(appointment, thread?.status, thread?.updatedAt),
+        appointment: {
+            ...formattedAppointment,
+            reason,
+            summary: reason,
+        },
         user: formatUser(user),
         messages,
     });

@@ -17,10 +17,17 @@ const getDayStart = (date: Date): Date => {
   return copy;
 };
 
-const hasConflict = (slotStart: Date, appointments: Appointment[]): boolean => {
+const hasConflict = (
+  slotStart: Date,
+  appointments: Appointment[],
+  options?: { ignoreThreadId?: string }
+): boolean => {
   const slotEnd = addMinutes(slotStart, SLOT_DURATION_MINUTES);
 
   return appointments.some((appointment) => {
+    if (options?.ignoreThreadId && appointment.threadId === options.ignoreThreadId)
+      return false;
+
     const appointmentStart = new Date(appointment.start);
     const appointmentEnd = new Date(appointment.end);
 
@@ -93,7 +100,7 @@ export const createAppointment = ({
     throw new Error("Invalid slot start time");
   }
 
-  if (hasConflict(startDate, getAppointments())) {
+  if (hasConflict(startDate, getAppointments(), { ignoreThreadId: threadId })) {
     throw new Error("Slot is no longer available");
   }
 

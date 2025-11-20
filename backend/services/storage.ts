@@ -216,13 +216,28 @@ export const createAppointment = (appointment: {
   end: string;
 }): Appointment => {
   const now = new Date().toISOString();
-  const record: Appointment = {
-    ...appointment,
-    id: randomUUID(),
-    createdAt: now,
-  };
+  const existingIndex = appointments.findIndex(
+    (existing) => existing.threadId === appointment.threadId
+  );
 
-  appointments.push(record);
+  if (existingIndex !== -1) {
+    const existing = appointments[existingIndex];
+    const updated: Appointment = {
+      ...existing,
+      ...appointment,
+      id: existing.id,
+      createdAt: existing.createdAt,
+    };
+    appointments.splice(existingIndex, 1, updated);
+  } else {
+    const record: Appointment = {
+      ...appointment,
+      id: randomUUID(),
+      createdAt: now,
+    };
+    appointments.push(record);
+  }
+
   touchThread(appointment.threadId);
-  return record;
+  return appointments.find((item) => item.threadId === appointment.threadId)!;
 };

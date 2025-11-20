@@ -145,13 +145,26 @@ const findAppointmentById = (appointmentId) => appointments.find((appointment) =
 exports.findAppointmentById = findAppointmentById;
 const createAppointment = (appointment) => {
     const now = new Date().toISOString();
-    const record = {
-        ...appointment,
-        id: (0, crypto_1.randomUUID)(),
-        createdAt: now,
-    };
-    appointments.push(record);
+    const existingIndex = appointments.findIndex((existing) => existing.threadId === appointment.threadId);
+    if (existingIndex !== -1) {
+        const existing = appointments[existingIndex];
+        const updated = {
+            ...existing,
+            ...appointment,
+            id: existing.id,
+            createdAt: existing.createdAt,
+        };
+        appointments.splice(existingIndex, 1, updated);
+    }
+    else {
+        const record = {
+            ...appointment,
+            id: (0, crypto_1.randomUUID)(),
+            createdAt: now,
+        };
+        appointments.push(record);
+    }
     touchThread(appointment.threadId);
-    return record;
+    return appointments.find((item) => item.threadId === appointment.threadId);
 };
 exports.createAppointment = createAppointment;

@@ -1,213 +1,246 @@
  (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
-diff --git a/backend/app.ts b/backend/app.ts
-index 401c9fdf13f408bb0673f3a8691382239780a205..3454150e6b2b65be3d5a6c062318a44af8a9dd8d 100644
---- a/backend/app.ts
-+++ b/backend/app.ts
-@@ -1,23 +1,25 @@
- import express from "express";
- import cors from "cors";
- import queryRouter from "./routes/query";
-+import appointmentsRouter from "./routes/appointments";
- 
- const app = express();
- 
- app.use(express.json());
- app.use(cors());
- app.use("/api/query", queryRouter);
-+app.use("/api/appointments", appointmentsRouter);
- 
- app.use(
-   (
-     err: Error,
-     _req: express.Request,
-     res: express.Response,
-     _next: express.NextFunction
-   ) => {
-     console.error("Unhandled application error:", err);
-     res.status(500).json({ error: "Internal server error" });
-   }
- );
- 
- export default app;
-diff --git a/backend/dist/app.js b/backend/dist/app.js
-index 4ac7fd34b03272f368d666b751fe692e8addc469..0b3da3eb8c7a45c124407ec03bc82d0af1121855 100644
---- a/backend/dist/app.js
-+++ b/backend/dist/app.js
-@@ -1,15 +1,19 @@
+diff --git a/backend/dist/routes/appointments.js b/backend/dist/routes/appointments.js
+index 7f8f22c9961331a6fd0bf5887d1f34f6b5d1507b..c0908b793d81e2915d7401a48211abd65907a0e8 100644
+--- a/backend/dist/routes/appointments.js
++++ b/backend/dist/routes/appointments.js
+@@ -8,67 +8,86 @@ const formatAppointment = (appointment, threadStatus, threadUpdatedAt) => {
+     if (!appointment)
+         return undefined;
+     return {
+         id: appointment.id,
+         user_id: appointment.userId,
+         thread_id: appointment.threadId,
+         start: appointment.start,
+         end: appointment.end,
+         scheduled_for: appointment.start,
+         created_at: appointment.createdAt,
+         updated_at: threadUpdatedAt ?? appointment.createdAt,
+         status: formatStatus(threadStatus),
+     };
+ };
+ const formatUser = (user) => {
+     if (!user)
+         return undefined;
+     const firstName = user.firstName ?? "";
+     const lastName = user.lastName ?? "";
+     const fullName = `${firstName} ${lastName}`.trim();
+     return {
+         id: user.id,
+         name: fullName || undefined,
+         email: user.email,
+         phone: user.phone,
++        summary: user.summary,
+     };
+ };
+ const formatMessageSender = (role) => {
+     switch (role) {
+         case "assistant":
+             return "Assistant";
+         case "user":
+             return "User";
+         case "system":
+             return "System";
+         default:
+             return undefined;
+     }
+ };
+ router.get("/", (_req, res) => {
+     const appointments = (0, storage_1.getAppointments)().map((appointment) => {
+         const thread = (0, storage_1.getThreadSummary)(appointment.threadId);
+-        return formatAppointment(appointment, thread?.status, thread?.updatedAt);
++        const user = (0, storage_1.getUserProfile)(appointment.userId);
++        const formattedUser = formatUser(user);
++        const formattedAppointment = formatAppointment(appointment, thread?.status, thread?.updatedAt);
++        const reason = user?.summary;
++        return {
++            ...formattedAppointment,
++            user: formattedUser,
++            patient_name: formattedUser?.name,
++            patient_email: formattedUser?.email,
++            patient_phone: formattedUser?.phone,
++            reason,
++            summary: reason,
++        };
+     });
+     return res.json({ appointments });
+ });
+ router.get("/:id", (req, res) => {
+     const appointment = (0, storage_1.findAppointmentById)(req.params.id);
+     if (!appointment) {
+         return res.status(404).json({ error: "Appointment not found" });
+     }
+     const thread = (0, storage_1.getThreadSummary)(appointment.threadId);
+     const user = (0, storage_1.getUserProfile)(appointment.userId);
+     const messages = (0, storage_1.getThreadMessagesWithIds)(appointment.threadId).map((message) => ({
+         id: message.id,
+         content: message.content,
+         role: message.role,
+         created_at: message.timestamp,
+         sender: formatMessageSender(message.role),
+     }));
++    const reason = user?.summary;
++    const formattedAppointment = formatAppointment(appointment, thread?.status, thread?.updatedAt);
+     return res.json({
+-        appointment: formatAppointment(appointment, thread?.status, thread?.updatedAt),
++        appointment: {
++            ...formattedAppointment,
++            reason,
++            summary: reason,
++        },
+         user: formatUser(user),
+         messages,
+     });
+ });
+ exports.default = router;
+diff --git a/backend/dist/services/agent.js b/backend/dist/services/agent.js
+index befb4b6403d23e88fb9550ce04d3347c66047f40..5a03406574e254cf9d9c9bb42825a13e1b03f695 100644
+--- a/backend/dist/services/agent.js
++++ b/backend/dist/services/agent.js
+@@ -1,35 +1,41 @@
  "use strict";
  var __importDefault = (this && this.__importDefault) || function (mod) {
      return (mod && mod.__esModule) ? mod : { "default": mod };
  };
  Object.defineProperty(exports, "__esModule", { value: true });
- const express_1 = __importDefault(require("express"));
-+const cors_1 = __importDefault(require("cors"));
- const query_1 = __importDefault(require("./routes/query"));
-+const appointments_1 = __importDefault(require("./routes/appointments"));
- const app = (0, express_1.default)();
- app.use(express_1.default.json());
-+app.use((0, cors_1.default)());
- app.use("/api/query", query_1.default);
-+app.use("/api/appointments", appointments_1.default);
- app.use((err, _req, res, _next) => {
-     console.error("Unhandled application error:", err);
-     res.status(500).json({ error: "Internal server error" });
- });
- exports.default = app;
-diff --git a/backend/dist/routes/appointments.js b/backend/dist/routes/appointments.js
-new file mode 100644
-index 0000000000000000000000000000000000000000..7f8f22c9961331a6fd0bf5887d1f34f6b5d1507b
---- /dev/null
-+++ b/backend/dist/routes/appointments.js
-@@ -0,0 +1,74 @@
-+"use strict";
-+Object.defineProperty(exports, "__esModule", { value: true });
-+const express_1 = require("express");
-+const storage_1 = require("../services/storage");
-+const router = (0, express_1.Router)();
-+const formatStatus = (status) => status ?? "scheduled";
-+const formatAppointment = (appointment, threadStatus, threadUpdatedAt) => {
-+    if (!appointment)
-+        return undefined;
-+    return {
-+        id: appointment.id,
-+        user_id: appointment.userId,
-+        thread_id: appointment.threadId,
-+        start: appointment.start,
-+        end: appointment.end,
-+        scheduled_for: appointment.start,
-+        created_at: appointment.createdAt,
-+        updated_at: threadUpdatedAt ?? appointment.createdAt,
-+        status: formatStatus(threadStatus),
-+    };
-+};
-+const formatUser = (user) => {
-+    if (!user)
-+        return undefined;
-+    const firstName = user.firstName ?? "";
-+    const lastName = user.lastName ?? "";
-+    const fullName = `${firstName} ${lastName}`.trim();
-+    return {
-+        id: user.id,
-+        name: fullName || undefined,
-+        email: user.email,
-+        phone: user.phone,
-+    };
-+};
-+const formatMessageSender = (role) => {
-+    switch (role) {
-+        case "assistant":
-+            return "Assistant";
-+        case "user":
-+            return "User";
-+        case "system":
-+            return "System";
-+        default:
-+            return undefined;
-+    }
-+};
-+router.get("/", (_req, res) => {
-+    const appointments = (0, storage_1.getAppointments)().map((appointment) => {
-+        const thread = (0, storage_1.getThreadSummary)(appointment.threadId);
-+        return formatAppointment(appointment, thread?.status, thread?.updatedAt);
-+    });
-+    return res.json({ appointments });
-+});
-+router.get("/:id", (req, res) => {
-+    const appointment = (0, storage_1.findAppointmentById)(req.params.id);
-+    if (!appointment) {
-+        return res.status(404).json({ error: "Appointment not found" });
-+    }
-+    const thread = (0, storage_1.getThreadSummary)(appointment.threadId);
-+    const user = (0, storage_1.getUserProfile)(appointment.userId);
-+    const messages = (0, storage_1.getThreadMessagesWithIds)(appointment.threadId).map((message) => ({
-+        id: message.id,
-+        content: message.content,
-+        role: message.role,
-+        created_at: message.timestamp,
-+        sender: formatMessageSender(message.role),
-+    }));
-+    return res.json({
-+        appointment: formatAppointment(appointment, thread?.status, thread?.updatedAt),
-+        user: formatUser(user),
-+        messages,
-+    });
-+});
-+exports.default = router;
-diff --git a/backend/dist/services/storage.js b/backend/dist/services/storage.js
-index ce96fa6443c5790fadbfd13fbe4c83d7d3028650..12cc9fb5a0bafe58941c9c9126a54be8c711e2a9 100644
---- a/backend/dist/services/storage.js
-+++ b/backend/dist/services/storage.js
-@@ -1,28 +1,28 @@
+ exports.hasRequiredFields = exports.runAgent = exports.FALLBACK_ASSISTANT_MESSAGE = exports.REQUIRED_USER_FIELDS = void 0;
+ const openai_1 = __importDefault(require("openai"));
+ const client = new openai_1.default({ apiKey: process.env.OPENAI_API_KEY });
+-exports.REQUIRED_USER_FIELDS = ["firstName", "lastName", "email", "phone"];
+-const getSystemInstructions = () => `You are a compassionate medical intake assistant. Use the conversation and known user fields to gather missing details politely. When a user provides their name, split it into firstName and lastName fields. Always respond with a single JSON object containing: \n- "assistantMessage": string for the patient,\n- "userUpdate": object with any new or updated user fields,\n- "hasAllRequiredFields": boolean true only when ${exports.REQUIRED_USER_FIELDS.join(", ")} are known,\n- "scheduleAppointment": boolean true when all required fields are collected and the user is ready to schedule.\nDo not include any extra keys.`;
++exports.REQUIRED_USER_FIELDS = [
++    "firstName",
++    "lastName",
++    "email",
++    "phone",
++    "summary",
++];
++const getSystemInstructions = () => `You are a compassionate medical intake assistant. Use the conversation and known user fields to gather missing details politely. When a user provides their name, split it into firstName and lastName fields. Be sure to capture a brief summary/reason for the appointment. Always respond with a single JSON object containing: \n- "assistantMessage": string for the patient,\n- "userUpdate": object with any new or updated user fields,\n- "hasAllRequiredFields": boolean true only when ${exports.REQUIRED_USER_FIELDS.join(", ")} are known,\n- "scheduleAppointment": boolean true when all required fields are collected and the user is ready to schedule.\nDo not include any extra keys.`;
+ exports.FALLBACK_ASSISTANT_MESSAGE = "I'm sorry, but I couldn't process that right now. Could you please rephrase or provide the details again?";
+ const formatKnownUserFields = (user) => {
+     const entries = Object.entries(user)
+         .filter(([key, value]) => key !== "id" && value !== undefined && value !== "")
+         .map(([key, value]) => `- ${key}: ${String(value)}`);
+     return entries.length ? entries.join("\n") : "No fields captured yet.";
+ };
+ const buildMessages = ({ user, recentMessages, newestMessage, }) => {
+     const history = recentMessages.slice(-8).map((message) => ({
+         role: message.role,
+         content: message.content,
+     }));
+     const knownFields = formatKnownUserFields(user);
+     return [
+         {
+             role: "system",
+             content: `${getSystemInstructions()}\n\nKnown user fields:\n${knownFields}`,
+         },
+         ...history,
+         {
+             role: "user",
+             content: newestMessage,
+         },
+     ];
+ };
+diff --git a/backend/dist/services/scheduler.js b/backend/dist/services/scheduler.js
+index d348d64a69e48775d4a3f55ed7044cc82a7df7a8..8b6cf03c9743a4523139b61102d8744dfd926aec 100644
+--- a/backend/dist/services/scheduler.js
++++ b/backend/dist/services/scheduler.js
+@@ -1,87 +1,89 @@
  "use strict";
  Object.defineProperty(exports, "__esModule", { value: true });
--exports.createAppointment = exports.getAppointments = exports.getThreadStatus = exports.getThreadWithMessages = exports.getOrCreateThreadForUser = exports.getThreadMessages = exports.recordMessage = exports.updateThreadStatus = exports.getUserProfile = exports.upsertUserProfile = void 0;
-+exports.createAppointment = exports.findAppointmentById = exports.getAppointments = exports.getThreadSummary = exports.getThreadStatus = exports.getThreadWithMessages = exports.getOrCreateThreadForUser = exports.getThreadMessagesWithIds = exports.getThreadMessages = exports.recordMessage = exports.updateThreadStatus = exports.getUserProfile = exports.upsertUserProfile = void 0;
- const crypto_1 = require("crypto");
- const users = new Map();
- const threads = new Map();
- const messages = new Map();
- const appointments = [];
- const mergeUserProfile = (existing, updates) => {
-     const merged = {
-         ...(existing ?? { id: updates.id }),
-         id: updates.id,
-     };
-     Object.entries(updates).forEach(([key, value]) => {
-         if (value !== undefined && value !== "") {
-             merged[key] = value;
-         }
+ exports.createAppointment = exports.getNextAvailableSlots = void 0;
+ const storage_1 = require("./storage");
+ const WORKING_HOURS_START = 10; // 10:00
+ const WORKING_HOURS_END = 17; // 17:00
+ const SLOT_DURATION_MINUTES = 30;
+ const addMinutes = (date, minutes) => new Date(date.getTime() + minutes * 60000);
+ const getDayStart = (date) => {
+     const copy = new Date(date);
+     copy.setHours(0, 0, 0, 0);
+     return copy;
+ };
+-const hasConflict = (slotStart, appointments) => {
++const hasConflict = (slotStart, appointments, options) => {
+     const slotEnd = addMinutes(slotStart, SLOT_DURATION_MINUTES);
+     return appointments.some((appointment) => {
++        if (options?.ignoreThreadId && appointment.threadId === options.ignoreThreadId)
++            return false;
+         const appointmentStart = new Date(appointment.start);
+         const appointmentEnd = new Date(appointment.end);
+         return slotStart < appointmentEnd && slotEnd > appointmentStart;
      });
-     return merged;
  };
- const upsertUserProfile = (user) => {
-     const now = new Date().toISOString();
-     const existingProfile = (0, exports.getUserProfile)(user.id);
-     const mergedProfile = mergeUserProfile(existingProfile, user);
-     const existingStoredProfile = users.get(user.id);
-     const stored = {
-         ...mergedProfile,
-         createdAt: existingStoredProfile?.createdAt ?? now,
-@@ -83,61 +83,75 @@ exports.updateThreadStatus = updateThreadStatus;
- const recordMessage = ({ threadId, role, content, }) => {
-     const timestamp = new Date().toISOString();
-     const message = {
-         id: (0, crypto_1.randomUUID)(),
-         threadId,
-         role,
-         content,
-         timestamp,
-     };
-     const existingMessages = messages.get(threadId) ?? [];
-     existingMessages.push(message);
-     messages.set(threadId, existingMessages);
-     touchThread(threadId);
-     return { role, content, timestamp };
+ const isWithinWorkingHours = (candidate) => {
+     const hour = candidate.getHours();
+     const minute = candidate.getMinutes();
+     const afterStart = hour > WORKING_HOURS_START || (hour === WORKING_HOURS_START && minute >= 0);
+     const beforeEnd = hour < WORKING_HOURS_END || (hour === WORKING_HOURS_END && minute === 0);
+     return afterStart && beforeEnd;
  };
- exports.recordMessage = recordMessage;
- const getThreadMessages = (threadId) => {
-     const threadMessages = messages.get(threadId) ?? [];
-     return threadMessages.map(({ role, content, timestamp }) => ({
-         role,
-         content,
-         timestamp,
-     }));
- };
- exports.getThreadMessages = getThreadMessages;
-+const getThreadMessagesWithIds = (threadId) => {
-+    const threadMessages = messages.get(threadId) ?? [];
-+    return threadMessages.map((message) => ({ ...message }));
-+};
-+exports.getThreadMessagesWithIds = getThreadMessagesWithIds;
- const getOrCreateThreadForUser = (params) => ensureThreadRecord(params.userId, params.threadId);
- exports.getOrCreateThreadForUser = getOrCreateThreadForUser;
- const getThreadWithMessages = (threadId) => {
-     const record = threads.get(threadId);
-     if (!record) {
-         throw new Error("Thread not found");
+ const getNextAvailableSlots = (appointments, count = 3, referenceDate = new Date()) => {
+     const slots = [];
+     let cursor = new Date(referenceDate);
+     // Round up to the next slot boundary
+     const minutes = cursor.getMinutes();
+     const offset = minutes % SLOT_DURATION_MINUTES;
+     if (offset !== 0) {
+         const adjustment = SLOT_DURATION_MINUTES - offset;
+         cursor = addMinutes(cursor, adjustment);
      }
-     return {
-         id: threadId,
-         messages: (0, exports.getThreadMessages)(threadId),
+     let safety = 0;
+     while (slots.length < count && safety < 60) {
+         const dayStart = getDayStart(cursor);
+         const dayWorkingStart = new Date(dayStart);
+         dayWorkingStart.setHours(WORKING_HOURS_START, 0, 0, 0);
+         const dayWorkingEnd = new Date(dayStart);
+         dayWorkingEnd.setHours(WORKING_HOURS_END, 0, 0, 0);
+         let slotCursor = new Date(Math.max(cursor.getTime(), dayWorkingStart.getTime()));
+         while (slotCursor < dayWorkingEnd && slots.length < count) {
+             if (isWithinWorkingHours(slotCursor) && !hasConflict(slotCursor, appointments)) {
+                 slots.push(slotCursor.toISOString());
+             }
+             slotCursor = addMinutes(slotCursor, SLOT_DURATION_MINUTES);
+         }
+         cursor = addMinutes(dayWorkingEnd, SLOT_DURATION_MINUTES);
+         safety += 1;
+     }
+     return slots.slice(0, count);
+ };
+ exports.getNextAvailableSlots = getNextAvailableSlots;
+ const createAppointment = ({ user, threadId, slotStart, durationMinutes = SLOT_DURATION_MINUTES, }) => {
+     const startDate = typeof slotStart === "string" ? new Date(slotStart) : slotStart;
+     if (Number.isNaN(startDate.getTime())) {
+         throw new Error("Invalid slot start time");
+     }
+-    if (hasConflict(startDate, (0, storage_1.getAppointments)())) {
++    if (hasConflict(startDate, (0, storage_1.getAppointments)(), { ignoreThreadId: threadId })) {
+         throw new Error("Slot is no longer available");
+     }
+     const endDate = addMinutes(startDate, durationMinutes);
+     const record = (0, storage_1.createAppointment)({
+         userId: user.id,
+         threadId,
+         start: startDate.toISOString(),
+         end: endDate.toISOString(),
+     });
+     // In a real system this would call an API. For now we log so we can trace the invocation.
+     const appointmentContext = {
+         firstName: user.firstName,
+         lastName: user.lastName,
+         fullName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+         email: user.email,
+         phone: user.phone,
+         start: record.start,
+         end: record.end,
+     };
+     console.info("Created appointment:", appointmentContext);
+     return record;
+ };
+ exports.createAppointment = createAppointment;
+diff --git a/backend/dist/services/storage.js b/backend/dist/services/storage.js
+index 12cc9fb5a0bafe58941c9c9126a54be8c711e2a9..792995a892ebc938286382bc8eb9449c6a5ea2d0 100644
+--- a/backend/dist/services/storage.js
++++ b/backend/dist/services/storage.js
+@@ -123,35 +123,48 @@ const getThreadWithMessages = (threadId) => {
          status: record.status,
      };
  };
@@ -220,246 +253,186 @@ index ce96fa6443c5790fadbfd13fbe4c83d7d3028650..12cc9fb5a0bafe58941c9c9126a54be8
      return record.status;
  };
  exports.getThreadStatus = getThreadStatus;
-+const getThreadSummary = (threadId) => {
-+    const record = threads.get(threadId);
-+    if (!record)
-+        return undefined;
-+    return { ...record };
-+};
-+exports.getThreadSummary = getThreadSummary;
+ const getThreadSummary = (threadId) => {
+     const record = threads.get(threadId);
+     if (!record)
+         return undefined;
+     return { ...record };
+ };
+ exports.getThreadSummary = getThreadSummary;
  const getAppointments = () => [...appointments];
  exports.getAppointments = getAppointments;
-+const findAppointmentById = (appointmentId) => appointments.find((appointment) => appointment.id === appointmentId);
-+exports.findAppointmentById = findAppointmentById;
+ const findAppointmentById = (appointmentId) => appointments.find((appointment) => appointment.id === appointmentId);
+ exports.findAppointmentById = findAppointmentById;
  const createAppointment = (appointment) => {
      const now = new Date().toISOString();
-     const record = {
-         ...appointment,
-         id: (0, crypto_1.randomUUID)(),
-         createdAt: now,
-     };
-     appointments.push(record);
+-    const record = {
+-        ...appointment,
+-        id: (0, crypto_1.randomUUID)(),
+-        createdAt: now,
+-    };
+-    appointments.push(record);
++    const existingIndex = appointments.findIndex((existing) => existing.threadId === appointment.threadId);
++    if (existingIndex !== -1) {
++        const existing = appointments[existingIndex];
++        const updated = {
++            ...existing,
++            ...appointment,
++            id: existing.id,
++            createdAt: existing.createdAt,
++        };
++        appointments.splice(existingIndex, 1, updated);
++    }
++    else {
++        const record = {
++            ...appointment,
++            id: (0, crypto_1.randomUUID)(),
++            createdAt: now,
++        };
++        appointments.push(record);
++    }
      touchThread(appointment.threadId);
-     return record;
+-    return record;
++    return appointments.find((item) => item.threadId === appointment.threadId);
  };
  exports.createAppointment = createAppointment;
-diff --git a/backend/package.json b/backend/package.json
-index e39793e21747d69beeccc2077ea580e6b62c0877..a51970496481f79827bae7c7590d277cd9a2af19 100644
---- a/backend/package.json
-+++ b/backend/package.json
-@@ -1,28 +1,28 @@
- {
-   "name": "backend",
-   "version": "0.0.0",
-   "private": true,
-   "scripts": {
-     "start": "ts-node server.ts",
--    "build": "tsc"
-+    "build": "tsc -p tsConfig.json"
-   },
-   "dependencies": {
-     "cookie-parser": "~1.4.4",
-     "cors": "^2.8.5",
-     "debug": "~2.6.9",
-     "dotenv": "^17.2.3",
-     "express": "~4.16.1",
-     "http-errors": "~1.6.3",
-     "jade": "~1.11.0",
-     "morgan": "~1.9.1",
-     "openai": "^4.83.0"
-   },
-   "devDependencies": {
-     "@types/cors": "^2.8.19",
-     "@types/dotenv": "^6.1.1",
-     "@types/express": "^5.0.0",
-     "@types/node": "^22.10.5",
-     "ts-node": "^10.9.2",
-     "typescript": "^5.7.3"
+diff --git a/backend/services/scheduler.ts b/backend/services/scheduler.ts
+index 97af8d1e4e1a9b3a76d0c22ecd5298d44138aa78..486143175cbed5f1a637f4c1b6d151dc92cdc8ac 100644
+--- a/backend/services/scheduler.ts
++++ b/backend/services/scheduler.ts
+@@ -1,48 +1,55 @@
+ import { Appointment, UserProfile } from "../types";
+ import {
+   createAppointment as persistAppointment,
+   getAppointments,
+ } from "./storage";
+ 
+ const WORKING_HOURS_START = 10; // 10:00
+ const WORKING_HOURS_END = 17; // 17:00
+ const SLOT_DURATION_MINUTES = 30;
+ 
+ const addMinutes = (date: Date, minutes: number): Date =>
+   new Date(date.getTime() + minutes * 60_000);
+ 
+ const getDayStart = (date: Date): Date => {
+   const copy = new Date(date);
+   copy.setHours(0, 0, 0, 0);
+   return copy;
+ };
+ 
+-const hasConflict = (slotStart: Date, appointments: Appointment[]): boolean => {
++const hasConflict = (
++  slotStart: Date,
++  appointments: Appointment[],
++  options?: { ignoreThreadId?: string }
++): boolean => {
+   const slotEnd = addMinutes(slotStart, SLOT_DURATION_MINUTES);
+ 
+   return appointments.some((appointment) => {
++    if (options?.ignoreThreadId && appointment.threadId === options.ignoreThreadId)
++      return false;
++
+     const appointmentStart = new Date(appointment.start);
+     const appointmentEnd = new Date(appointment.end);
+ 
+     return slotStart < appointmentEnd && slotEnd > appointmentStart;
+   });
+ };
+ 
+ const isWithinWorkingHours = (candidate: Date): boolean => {
+   const hour = candidate.getHours();
+   const minute = candidate.getMinutes();
+   const afterStart = hour > WORKING_HOURS_START || (hour === WORKING_HOURS_START && minute >= 0);
+   const beforeEnd = hour < WORKING_HOURS_END || (hour === WORKING_HOURS_END && minute === 0);
+   return afterStart && beforeEnd;
+ };
+ 
+ export const getNextAvailableSlots = (
+   appointments: Appointment[],
+   count = 3,
+   referenceDate: Date = new Date()
+ ): string[] => {
+   const slots: string[] = [];
+   let cursor = new Date(referenceDate);
+ 
+   // Round up to the next slot boundary
+   const minutes = cursor.getMinutes();
+@@ -71,51 +78,51 @@ export const getNextAvailableSlots = (
+     }
+ 
+     cursor = addMinutes(dayWorkingEnd, SLOT_DURATION_MINUTES);
+     safety += 1;
    }
- }
-diff --git a/backend/routes/appointments.ts b/backend/routes/appointments.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..4681ce2ec45770b22ff241e0dbe2eda6927107fb
---- /dev/null
-+++ b/backend/routes/appointments.ts
-@@ -0,0 +1,98 @@
-+import { Router } from "express";
-+import {
-+  findAppointmentById,
-+  getAppointments,
-+  getThreadMessagesWithIds,
-+  getThreadSummary,
-+  getUserProfile,
-+} from "../services/storage";
-+import { ThreadStatus } from "../types";
-+
-+const router = Router();
-+
-+const formatStatus = (status?: ThreadStatus): ThreadStatus | "scheduled" =>
-+  status ?? "scheduled";
-+
-+const formatAppointment = (
-+  appointment: ReturnType<typeof findAppointmentById>,
-+  threadStatus?: ThreadStatus,
-+  threadUpdatedAt?: string
-+) => {
-+  if (!appointment) return undefined;
-+
-+  return {
-+    id: appointment.id,
-+    user_id: appointment.userId,
-+    thread_id: appointment.threadId,
-+    start: appointment.start,
-+    end: appointment.end,
-+    scheduled_for: appointment.start,
-+    created_at: appointment.createdAt,
-+    updated_at: threadUpdatedAt ?? appointment.createdAt,
-+    status: formatStatus(threadStatus),
-+  };
-+};
-+
-+const formatUser = (user: ReturnType<typeof getUserProfile>) => {
-+  if (!user) return undefined;
-+
-+  const firstName = user.firstName ?? "";
-+  const lastName = user.lastName ?? "";
-+  const fullName = `${firstName} ${lastName}`.trim();
-+
-+  return {
-+    id: user.id,
-+    name: fullName || undefined,
-+    email: user.email,
-+    phone: user.phone,
-+  };
-+};
-+
-+const formatMessageSender = (role: string | undefined) => {
-+  switch (role) {
-+    case "assistant":
-+      return "Assistant";
-+    case "user":
-+      return "User";
-+    case "system":
-+      return "System";
-+    default:
-+      return undefined;
-+  }
-+};
-+
-+router.get("/", (_req, res) => {
-+  const appointments = getAppointments().map((appointment) => {
-+    const thread = getThreadSummary(appointment.threadId);
-+    return formatAppointment(appointment, thread?.status, thread?.updatedAt);
-+  });
-+
-+  return res.json({ appointments });
-+});
-+
-+router.get("/:id", (req, res) => {
-+  const appointment = findAppointmentById(req.params.id);
-+  if (!appointment) {
-+    return res.status(404).json({ error: "Appointment not found" });
-+  }
-+
-+  const thread = getThreadSummary(appointment.threadId);
-+  const user = getUserProfile(appointment.userId);
-+  const messages = getThreadMessagesWithIds(appointment.threadId).map(
-+    (message) => ({
-+      id: message.id,
-+      content: message.content,
-+      role: message.role,
-+      created_at: message.timestamp,
-+      sender: formatMessageSender(message.role),
-+    })
-+  );
-+
-+  return res.json({
-+    appointment: formatAppointment(appointment, thread?.status, thread?.updatedAt),
-+    user: formatUser(user),
-+    messages,
-+  });
-+});
-+
-+export default router;
+ 
+   return slots.slice(0, count);
+ };
+ 
+ export const createAppointment = ({
+   user,
+   threadId,
+   slotStart,
+   durationMinutes = SLOT_DURATION_MINUTES,
+ }: {
+   user: UserProfile;
+   threadId: string;
+   slotStart: Date | string;
+   durationMinutes?: number;
+ }): Appointment => {
+   const startDate = typeof slotStart === "string" ? new Date(slotStart) : slotStart;
+   if (Number.isNaN(startDate.getTime())) {
+     throw new Error("Invalid slot start time");
+   }
+ 
+-  if (hasConflict(startDate, getAppointments())) {
++  if (hasConflict(startDate, getAppointments(), { ignoreThreadId: threadId })) {
+     throw new Error("Slot is no longer available");
+   }
+ 
+   const endDate = addMinutes(startDate, durationMinutes);
+ 
+   const record = persistAppointment({
+     userId: user.id,
+     threadId,
+     start: startDate.toISOString(),
+     end: endDate.toISOString(),
+   });
+ 
+   // In a real system this would call an API. For now we log so we can trace the invocation.
+   const appointmentContext = {
+     firstName: user.firstName,
+     lastName: user.lastName,
+     fullName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+     email: user.email,
+     phone: user.phone,
+     start: record.start,
+     end: record.end,
+   };
+ 
+   console.info("Created appointment:", appointmentContext);
+   return record;
 diff --git a/backend/services/storage.ts b/backend/services/storage.ts
-index aaf8668c6bb7618125b30a75b2b4a3a448dc6340..ca9f9cfef2961ff51d059cabdc7e650574d322d0 100644
+index ca9f9cfef2961ff51d059cabdc7e650574d322d0..9737c31d6ac8740127eb0f49b00afb223cb27498 100644
 --- a/backend/services/storage.ts
 +++ b/backend/services/storage.ts
-@@ -138,72 +138,91 @@ export const recordMessage = ({
-   const message: MessageRecord = {
-     id: randomUUID(),
-     threadId,
-     role,
-     content,
-     timestamp,
-   };
- 
-   const existingMessages = messages.get(threadId) ?? [];
-   existingMessages.push(message);
-   messages.set(threadId, existingMessages);
-   touchThread(threadId);
- 
-   return { role, content, timestamp };
+@@ -194,35 +194,50 @@ export const getThreadStatus = (threadId: string): ThreadStatus => {
  };
  
- export const getThreadMessages = (threadId: string): ThreadMessage[] => {
-   const threadMessages = messages.get(threadId) ?? [];
-   return threadMessages.map(({ role, content, timestamp }) => ({
-     role,
-     content,
-     timestamp,
-   }));
- };
- 
-+export const getThreadMessagesWithIds = (threadId: string): MessageRecord[] => {
-+  const threadMessages = messages.get(threadId) ?? [];
-+  return threadMessages.map((message) => ({ ...message }));
-+};
-+
- export const getOrCreateThreadForUser = (params: {
-   userId: string;
-   threadId?: string;
- }): { thread: ThreadRecord; created: boolean } =>
-   ensureThreadRecord(params.userId, params.threadId);
- 
- export const getThreadWithMessages = (threadId: string): Thread => {
+ export const getThreadSummary = (
+   threadId: string
+ ): (ThreadRecord & { userId: string }) | undefined => {
    const record = threads.get(threadId);
-   if (!record) {
-     throw new Error("Thread not found");
-   }
+   if (!record) return undefined;
  
-   return {
-     id: threadId,
-     messages: getThreadMessages(threadId),
-     status: record.status,
-   };
+   return { ...record };
  };
  
- export const getThreadStatus = (threadId: string): ThreadStatus => {
-   const record = threads.get(threadId);
-   if (!record) {
-     throw new Error("Thread not found");
-   }
- 
-   return record.status;
- };
- 
-+export const getThreadSummary = (
-+  threadId: string
-+): (ThreadRecord & { userId: string }) | undefined => {
-+  const record = threads.get(threadId);
-+  if (!record) return undefined;
-+
-+  return { ...record };
-+};
-+
  export const getAppointments = (): Appointment[] => [...appointments];
  
-+export const findAppointmentById = (
-+  appointmentId: string
-+): Appointment | undefined =>
-+  appointments.find((appointment) => appointment.id === appointmentId);
-+
+ export const findAppointmentById = (
+   appointmentId: string
+ ): Appointment | undefined =>
+   appointments.find((appointment) => appointment.id === appointmentId);
+ 
  export const createAppointment = (appointment: {
    userId: string;
    threadId: string;
@@ -467,49 +440,38 @@ index aaf8668c6bb7618125b30a75b2b4a3a448dc6340..ca9f9cfef2961ff51d059cabdc7e6505
    end: string;
  }): Appointment => {
    const now = new Date().toISOString();
-   const record: Appointment = {
-     ...appointment,
-     id: randomUUID(),
-     createdAt: now,
-   };
+-  const record: Appointment = {
+-    ...appointment,
+-    id: randomUUID(),
+-    createdAt: now,
+-  };
++  const existingIndex = appointments.findIndex(
++    (existing) => existing.threadId === appointment.threadId
++  );
++
++  if (existingIndex !== -1) {
++    const existing = appointments[existingIndex];
++    const updated: Appointment = {
++      ...existing,
++      ...appointment,
++      id: existing.id,
++      createdAt: existing.createdAt,
++    };
++    appointments.splice(existingIndex, 1, updated);
++  } else {
++    const record: Appointment = {
++      ...appointment,
++      id: randomUUID(),
++      createdAt: now,
++    };
++    appointments.push(record);
++  }
  
-   appointments.push(record);
+-  appointments.push(record);
    touchThread(appointment.threadId);
-   return record;
+-  return record;
++  return appointments.find((item) => item.threadId === appointment.threadId)!;
  };
-diff --git a/backend/tsConfig.json b/backend/tsConfig.json
-index ee5f451e1a64103c891dd735846df91d3c14a3b9..698fe7a2bbfa9977612228e5118fd05c1f1f7f8d 100644
---- a/backend/tsConfig.json
-+++ b/backend/tsConfig.json
-@@ -1,16 +1,16 @@
- {
-   "compilerOptions": {
-     "target": "ES2020",
-     "module": "CommonJS",
-     "moduleResolution": "Node",
-     "esModuleInterop": true,
-     "forceConsistentCasingInFileNames": true,
-     "strict": true,
-     "skipLibCheck": true,
-     "resolveJsonModule": true,
-     "outDir": "dist",
--    "types": ["node"]
-+    "types": ["node", "express"]
-   },
-   "include": ["**/*.ts", "**/*.js"],
-   "exclude": ["node_modules", "dist"]
- }
-diff --git a/backend/types/cors.d.ts b/backend/types/cors.d.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..d1ea3cf538f14f699f1641ec6cd42465c4d81d9a
---- /dev/null
-+++ b/backend/types/cors.d.ts
-@@ -0,0 +1,5 @@
-+declare module "cors" {
-+  import { RequestHandler } from "express";
-+  const cors: (options?: unknown) => RequestHandler;
-+  export default cors;
-+}
  
 EOF
 )
