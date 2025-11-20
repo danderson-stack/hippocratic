@@ -5,22 +5,16 @@ import {
   runAgent,
 } from "../services/agent";
 import { scheduleAppointment } from "../services/scheduler";
-import { QueryRequestBody, ThreadMessage, UserProfile } from "../types";
+import {
+  getOrCreateThreadForUser,
+  getThreadMessages,
+  getThreadWithMessages,
+  recordMessage,
+  upsertUserProfile,
+} from "../services/storage";
+import { QueryRequestBody, UserProfile } from "../types";
 
 const router = Router();
-
-const appendMessage = (
-  messages: ThreadMessage[],
-  role: ThreadMessage["role"],
-  content: string
-) => [
-  ...messages,
-  {
-    role,
-    content,
-    timestamp: new Date().toISOString(),
-  },
-];
 
 const mergeUserUpdate = (
   user: UserProfile,
@@ -35,22 +29,47 @@ router.post("/", async (req, res) => {
 
   console.log(`[ROUTE] Received message from user ${user?.id}: "${message}"`);
 
-  if (!user || !thread || typeof message !== "string") {
-    return res
-      .status(400)
-      .json({ error: "user, thread, and message are required" });
+  if (!user || typeof user.id !== "string" || typeof message !== "string") {
+    return res.status(400).json({ error: "user and message are required" });
   }
 
-  const conversation = thread.messages || [];
-  const userThreadMessages = appendMessage(conversation, "user", message);
+  let activeThreadId: string;
+
+  try {
+    const { thread: activeThread, created } = getOrCreateThreadForUser({
+      userId: user.id,
+      threadId: thread?.id,
+    });
+
+    activeThreadId = activeThread.id;
+
+    if (created) {
+      console.log(`[ROUTE] Created new thread ${activeThreadId} for user ${user.id}`);
+    }
+  } catch (threadError) {
+    console.error(
+      `[ROUTE] Failed to resolve thread for user ${user.id}:`,
+      threadError
+    );
+    return res.status(400).json({ error: "Invalid thread" });
+  }
+
+  const persistedUser = upsertUserProfile(user);
+  const existingMessages = getThreadMessages(activeThreadId);
+
+  recordMessage({
+    threadId: activeThreadId,
+    role: "user",
+    content: message,
+  });
 
   try {
     console.log(
       `[ROUTE] Calling agent for user ${user.id} with message: "${message}"`
     );
     const agentResponse = await runAgent({
-      user,
-      recentMessages: conversation,
+      user: persistedUser,
+      recentMessages: existingMessages,
       newestMessage: message,
     });
     console.log(
@@ -59,15 +78,15 @@ router.post("/", async (req, res) => {
       }: "${agentResponse.assistantMessage.substring(0, 100)}..."`
     );
 
-    const updatedUser = mergeUserUpdate(user, agentResponse.userUpdate);
-    const updatedThread = {
-      ...thread,
-      messages: appendMessage(
-        userThreadMessages,
-        "assistant",
-        agentResponse.assistantMessage
-      ),
-    };
+    const updatedUser = upsertUserProfile(
+      mergeUserUpdate(persistedUser, agentResponse.userUpdate)
+    );
+
+    recordMessage({
+      threadId: activeThreadId,
+      role: "assistant",
+      content: agentResponse.assistantMessage,
+    });
 
     const hasAllFields =
       agentResponse.hasAllRequiredFields || hasRequiredFields(updatedUser);
@@ -86,19 +105,23 @@ router.post("/", async (req, res) => {
     return res.json({
       message: agentResponse.assistantMessage,
       user: updatedUser,
-      thread: updatedThread,
+      thread: getThreadWithMessages(activeThreadId),
       hasAllRequiredFields: hasAllFields,
       scheduleAppointment: agentResponse.scheduleAppointment,
     });
   } catch (error) {
     console.error(`[ROUTE] Query handler error for user ${user?.id}:`, error);
+
+    recordMessage({
+      threadId: activeThreadId,
+      role: "assistant",
+      content: FALLBACK_ASSISTANT_MESSAGE,
+    });
+
     return res.status(500).json({
       message: FALLBACK_ASSISTANT_MESSAGE,
-      user,
-      thread: {
-        ...thread,
-        messages: userThreadMessages,
-      },
+      user: persistedUser,
+      thread: getThreadWithMessages(activeThreadId),
       hasAllRequiredFields: false,
       scheduleAppointment: false,
     });
