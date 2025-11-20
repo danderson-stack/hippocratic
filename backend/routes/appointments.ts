@@ -45,6 +45,7 @@ const formatUser = (user: ReturnType<typeof getUserProfile>) => {
     name: fullName || undefined,
     email: user.email,
     phone: user.phone,
+    summary: user.summary,
   };
 };
 
@@ -73,12 +74,16 @@ router.get("/", (_req, res) => {
       thread?.updatedAt
     );
 
+    const reason = user?.summary;
+
     return {
       ...formattedAppointment,
       user: formattedUser,
       patient_name: formattedUser?.name,
       patient_email: formattedUser?.email,
       patient_phone: formattedUser?.phone,
+      reason,
+      summary: reason,
     };
   });
 
@@ -103,8 +108,19 @@ router.get("/:id", (req, res) => {
     })
   );
 
+  const reason = user?.summary;
+  const formattedAppointment = formatAppointment(
+    appointment,
+    thread?.status,
+    thread?.updatedAt
+  );
+
   return res.json({
-    appointment: formatAppointment(appointment, thread?.status, thread?.updatedAt),
+    appointment: {
+      ...formattedAppointment,
+      reason,
+      summary: reason,
+    },
     user: formatUser(user),
     messages,
   });
