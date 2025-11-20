@@ -40,6 +40,10 @@ const getOrCreateUserId = (): string => {
   return newId;
 };
 
+export const resetUserId = () => {
+  localStorage.removeItem(USER_ID_STORAGE_KEY);
+};
+
 const buildHeaders = () => ({
   "Content-Type": "application/json",
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useScheduleApi } from "../services/scheduleApi";
+import { resetUserId, useScheduleApi } from "../services/scheduleApi";
 import type { ThreadMessage } from "../services/scheduleApi";
 
 const PENDING_AGENT_MESSAGE = "Agent is typing...";
@@ -128,6 +128,16 @@ function SchedulePage() {
     setInputValue(event.target.value);
   };
 
+  const handleNewThread = () => {
+    resetUserId();
+    setThreadId(undefined);
+    setMessages([]);
+    setAvailableSlots([]);
+    setInputValue("");
+    setError(null);
+    pendingAgentIndexRef.current = null;
+  };
+
   return (
     <div
       style={{
@@ -139,9 +149,33 @@ function SchedulePage() {
         boxSizing: "border-box",
       }}
     >
-      <h1 style={{ textAlign: "center", margin: 0 }}>
-        Hippocratic Appointment Schedule Agent
-      </h1>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+        }}
+      >
+        <h1 style={{ margin: 0 }}>Hippocratic Appointment Schedule Agent</h1>
+        <button
+          type="button"
+          onClick={handleNewThread}
+          disabled={isSending}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "8px",
+            border: "1px solid #1976d2",
+            backgroundColor: isSending ? "#e0e0e0" : "#e3f2fd",
+            color: isSending ? "#757575" : "#0d47a1",
+            cursor: isSending ? "not-allowed" : "pointer",
+            fontWeight: 700,
+            minWidth: "150px",
+          }}
+        >
+          Create New Thread
+        </button>
+      </div>
 
       {error && (
         <div

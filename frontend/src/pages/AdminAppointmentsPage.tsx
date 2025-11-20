@@ -95,7 +95,14 @@ export default function AdminAppointmentsPage() {
 
   return (
     <main
-      style={{ margin: "0 auto", maxWidth: "960px", padding: "2rem 1.5rem" }}
+      style={{
+        margin: "0 auto",
+        maxWidth: "960px",
+        padding: "2rem 1.5rem",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+      }}
     >
       <header style={{ marginBottom: "1.5rem" }}>
         <p style={{ margin: 0 }}>Breadcrumbs: Home / Admin / Appointments</p>
@@ -112,7 +119,14 @@ export default function AdminAppointmentsPage() {
           {rows.length === 0 ? (
             <p>No appointments available.</p>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table
+              style={{
+                width: "100%",
+                maxWidth: "860px",
+                margin: "0 auto",
+                borderCollapse: "collapse",
+              }}
+            >
               <thead>
                 <tr>
                   <th

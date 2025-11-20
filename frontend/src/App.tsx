@@ -1,5 +1,5 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
-import AdminAppointmentDetailPage from './pages/AdminAppointmentDetailPage.tsx'
+import AdminAppointmentDetailPage from './pages/AdminAppointmentDetailPage'
 import AdminAppointmentsPage from './pages/AdminAppointmentsPage'
 import SchedulePage from './pages/SchedulePage'
 
