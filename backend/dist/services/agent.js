@@ -6,12 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.hasRequiredFields = exports.runAgent = exports.FALLBACK_ASSISTANT_MESSAGE = exports.REQUIRED_USER_FIELDS = void 0;
 const openai_1 = __importDefault(require("openai"));
 const client = new openai_1.default({ apiKey: process.env.OPENAI_API_KEY });
-exports.REQUIRED_USER_FIELDS = [
-    "firstName",
-    "lastName",
-    "email",
-    "phone",
-];
+exports.REQUIRED_USER_FIELDS = ["firstName", "lastName", "email", "phone"];
 const getSystemInstructions = () => `You are a compassionate medical intake assistant. Use the conversation and known user fields to gather missing details politely. When a user provides their name, split it into firstName and lastName fields. Always respond with a single JSON object containing: \n- "assistantMessage": string for the patient,\n- "userUpdate": object with any new or updated user fields,\n- "hasAllRequiredFields": boolean true only when ${exports.REQUIRED_USER_FIELDS.join(", ")} are known,\n- "scheduleAppointment": boolean true when all required fields are collected and the user is ready to schedule.\nDo not include any extra keys.`;
 exports.FALLBACK_ASSISTANT_MESSAGE = "I'm sorry, but I couldn't process that right now. Could you please rephrase or provide the details again?";
 const formatKnownUserFields = (user) => {

@@ -1,5 +1,11 @@
 import { randomUUID } from "crypto";
-import { Thread, ThreadMessage, UserProfile } from "../types";
+import {
+  Appointment,
+  Thread,
+  ThreadMessage,
+  ThreadStatus,
+  UserProfile,
+} from "../types";
 
 type StoredUserProfile = UserProfile & {
   createdAt: string;
@@ -11,6 +17,7 @@ type ThreadRecord = {
   userId: string;
   createdAt: string;
   updatedAt: string;
+  status: ThreadStatus;
 };
 
 type MessageRecord = ThreadMessage & {
@@ -22,6 +29,7 @@ type MessageRecord = ThreadMessage & {
 const users = new Map<string, StoredUserProfile>();
 const threads = new Map<string, ThreadRecord>();
 const messages = new Map<string, MessageRecord[]>();
+const appointments: Appointment[] = [];
 
 const mergeUserProfile = (
   existing: UserProfile | undefined,
@@ -87,6 +95,7 @@ const ensureThreadRecord = (
       userId,
       createdAt: now,
       updatedAt: now,
+      status: "collecting_details",
     };
     threads.set(id, thread);
     created = true;
@@ -100,6 +109,20 @@ const touchThread = (threadId: string) => {
   if (!record) return;
 
   threads.set(threadId, { ...record, updatedAt: new Date().toISOString() });
+};
+
+export const updateThreadStatus = (
+  threadId: string,
+  status: ThreadStatus
+): ThreadStatus => {
+  const record = threads.get(threadId);
+  if (!record) {
+    throw new Error("Thread not found");
+  }
+
+  const updatedRecord = { ...record, status, updatedAt: new Date().toISOString() };
+  threads.set(threadId, updatedRecord);
+  return status;
 };
 
 export const recordMessage = ({
@@ -143,7 +166,44 @@ export const getOrCreateThreadForUser = (params: {
 }): { thread: ThreadRecord; created: boolean } =>
   ensureThreadRecord(params.userId, params.threadId);
 
-export const getThreadWithMessages = (threadId: string): Thread => ({
-  id: threadId,
-  messages: getThreadMessages(threadId),
-});
+export const getThreadWithMessages = (threadId: string): Thread => {
+  const record = threads.get(threadId);
+  if (!record) {
+    throw new Error("Thread not found");
+  }
+
+  return {
+    id: threadId,
+    messages: getThreadMessages(threadId),
+    status: record.status,
+  };
+};
+
+export const getThreadStatus = (threadId: string): ThreadStatus => {
+  const record = threads.get(threadId);
+  if (!record) {
+    throw new Error("Thread not found");
+  }
+
+  return record.status;
+};
+
+export const getAppointments = (): Appointment[] => [...appointments];
+
+export const createAppointment = (appointment: {
+  userId: string;
+  threadId: string;
+  start: string;
+  end: string;
+}): Appointment => {
+  const now = new Date().toISOString();
+  const record: Appointment = {
+    ...appointment,
+    id: randomUUID(),
+    createdAt: now,
+  };
+
+  appointments.push(record);
+  touchThread(appointment.threadId);
+  return record;
+};
