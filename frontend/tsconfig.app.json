@@ -7,7 +7,10 @@
     "module": "ESNext",
     "types": ["vite/client"],
     "skipLibCheck": true,
-
+    "baseUrl": "./",
+    "paths": {
+      "react-router-dom": ["./src/react-router-dom"]
+    },
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
