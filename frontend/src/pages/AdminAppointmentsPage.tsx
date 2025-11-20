@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 type AppointmentListItem = {
   id: string;
+  start?: string;
   scheduled_for?: string;
   scheduledAt?: string;
   reason?: string;
@@ -28,6 +29,15 @@ const getPatientName = (appointment: AppointmentListItem) =>
   appointment.patient_name ||
   appointment.user_name ||
   "Unknown";
+
+const getAppointmentStart = (appointment: AppointmentListItem) =>
+  appointment.start || appointment.scheduled_for || appointment.scheduledAt;
+
+const toTimestamp = (value?: string) => {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+};
 
 const normalizeAppointments = (payload: unknown): AppointmentListItem[] => {
   if (Array.isArray(payload)) return payload as AppointmentListItem[];
@@ -83,13 +93,24 @@ export default function AdminAppointmentsPage() {
   }, []);
 
   const rows = useMemo(
-    () =>
-      appointments.map((appointment) => ({
-        id: appointment.id,
-        time: appointment.scheduled_for || appointment.scheduledAt,
-        patient: getPatientName(appointment),
-        summary: appointment.reason || appointment.summary || "Not provided",
-      })),
+    () => {
+      const appointmentRows = appointments.map((appointment) => {
+        const startTime = getAppointmentStart(appointment);
+
+        return {
+          id: appointment.id,
+          startTime,
+          patient: getPatientName(appointment),
+          summary: appointment.reason || appointment.summary || "Not provided",
+        };
+      });
+
+      appointmentRows.sort(
+        (first, second) => toTimestamp(first.startTime) - toTimestamp(second.startTime)
+      );
+
+      return appointmentRows;
+    },
     [appointments]
   );
 
@@ -174,7 +195,7 @@ export default function AdminAppointmentsPage() {
                     style={{ borderBottom: "1px solid #f3f4f6" }}
                   >
                     <td style={{ padding: "0.5rem" }}>
-                      {formatDate(appointment.time)}
+                      {formatDate(appointment.startTime)}
                     </td>
                     <td style={{ padding: "0.5rem" }}>{appointment.patient}</td>
                     <td style={{ padding: "0.5rem" }}>{appointment.summary}</td>
