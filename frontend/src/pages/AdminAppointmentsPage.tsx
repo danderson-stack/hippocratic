@@ -1,41 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
-type AppointmentData = {
+type AppointmentListItem = {
   id: string;
-  status?: string;
   scheduled_for?: string;
+  scheduledAt?: string;
   reason?: string;
-  created_at?: string;
-  updated_at?: string;
+  summary?: string;
+  patient?: string;
+  patient_name?: string;
+  user_name?: string;
+  user?: {
+    name?: string;
+  };
   [key: string]: unknown;
-};
-
-type UserData = {
-  id: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  [key: string]: unknown;
-};
-
-type MessageData = {
-  id: string | number;
-  content: string;
-  created_at: string;
-  sender?: string;
-  role?: string;
-  [key: string]: unknown;
-};
-
-type AppointmentResponse = {
-  appointment?: AppointmentData;
-  user?: UserData;
-  messages?: MessageData[];
-};
-
-const getAppointmentIdFromPath = (path: string) => {
-  const segments = path.split("/").filter(Boolean);
-  return segments.pop() ?? null;
 };
 
 const formatDate = (value?: string) => {
@@ -44,41 +22,49 @@ const formatDate = (value?: string) => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 };
 
-export default function AppointmentDetailPage() {
-  const [appointmentId, setAppointmentId] = useState<string | null>(null);
-  const [appointment, setAppointment] = useState<AppointmentData | null>(null);
-  const [user, setUser] = useState<UserData | null>(null);
-  const [messages, setMessages] = useState<MessageData[]>([]);
+const getPatientName = (appointment: AppointmentListItem) =>
+  appointment.user?.name ||
+  appointment.patient ||
+  appointment.patient_name ||
+  appointment.user_name ||
+  "Unknown";
+
+const normalizeAppointments = (payload: unknown): AppointmentListItem[] => {
+  if (Array.isArray(payload)) return payload as AppointmentListItem[];
+  if (
+    payload &&
+    typeof payload === "object" &&
+    Array.isArray((payload as { appointments?: AppointmentListItem[] }).appointments)
+  ) {
+    return (payload as { appointments: AppointmentListItem[] }).appointments;
+  }
+  return [];
+};
+
+export default function AdminAppointmentsPage() {
+  const [appointments, setAppointments] = useState<AppointmentListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setAppointmentId(getAppointmentIdFromPath(window.location.pathname));
-  }, []);
-
-  useEffect(() => {
-    if (!appointmentId) return;
-
     const controller = new AbortController();
-    const loadAppointment = async () => {
+
+    const loadAppointments = async () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/appointments/${appointmentId}`, {
+        const response = await fetch("/api/appointments", {
           signal: controller.signal,
         });
 
         if (!response.ok) {
-          throw new Error(`Unable to load appointment (${response.status})`);
+          throw new Error(`Unable to load appointments (${response.status})`);
         }
 
-        const data: AppointmentResponse = await response.json();
+        const data = await response.json();
         if (controller.signal.aborted) return;
 
-        setAppointment(data.appointment ?? null);
-        setUser(data.user ?? null);
-        setMessages(Array.isArray(data.messages) ? data.messages : []);
+        setAppointments(normalizeAppointments(data));
       } catch (fetchError) {
         if (controller.signal.aborted) return;
         const message =
@@ -89,156 +75,79 @@ export default function AppointmentDetailPage() {
       }
     };
 
-    void loadAppointment();
+    void loadAppointments();
 
     return () => controller.abort();
-  }, [appointmentId]);
+  }, []);
 
-  const sortedMessages = useMemo(
+  const rows = useMemo(
     () =>
-      [...messages].sort(
-        (first, second) =>
-          new Date(first.created_at).getTime() -
-          new Date(second.created_at).getTime()
-      ),
-    [messages]
+      appointments.map((appointment) => ({
+        id: appointment.id,
+        time: appointment.scheduled_for || appointment.scheduledAt,
+        patient: getPatientName(appointment),
+        summary: appointment.reason || appointment.summary || "Not provided",
+      })),
+    [appointments]
   );
 
   return (
-    <main
-      style={{ margin: "0 auto", maxWidth: "960px", padding: "2rem 1.5rem" }}
-    >
-      <header style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-        <a href="/admin/appointments" style={{ textDecoration: "none" }}>
-          ← Back to appointments
-        </a>
-        <h1 style={{ margin: 0 }}>Appointment Details</h1>
+    <main style={{ margin: "0 auto", maxWidth: "960px", padding: "2rem 1.5rem" }}>
+      <header style={{ marginBottom: "1.5rem" }}>
+        <p style={{ margin: 0 }}>Breadcrumbs: Home / Admin / Appointments</p>
+        <h1 style={{ margin: "0.25rem 0 0" }}>Appointments</h1>
       </header>
 
-      {loading && <p>Loading appointment...</p>}
-      {error && (
-        <p style={{ color: "red" }}>
-          There was a problem loading this appointment: {error}
-        </p>
-      )}
+      {loading && <p>Loading appointments...</p>}
+      {error && <p style={{ color: "red" }}>Unable to load appointments: {error}</p>}
 
       {!loading && !error && (
-        <div style={{ display: "grid", gap: "1.5rem", marginTop: "1.5rem" }}>
-          <section
-            style={{
-              padding: "1rem",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>User Information</h2>
-            {user ? (
-              <dl
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "max-content 1fr",
-                  gap: "0.5rem 1rem",
-                }}
-              >
-                <dt style={{ fontWeight: 600 }}>Name</dt>
-                <dd>{user.name ?? "Not provided"}</dd>
-                <dt style={{ fontWeight: 600 }}>Email</dt>
-                <dd>{user.email ?? "Not provided"}</dd>
-                <dt style={{ fontWeight: 600 }}>Phone</dt>
-                <dd>{user.phone ?? "Not provided"}</dd>
-                <dt style={{ fontWeight: 600 }}>User ID</dt>
-                <dd>{user.id}</dd>
-              </dl>
-            ) : (
-              <p>No user information available for this appointment.</p>
-            )}
-          </section>
-
-          <section
-            style={{
-              padding: "1rem",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>Appointment Information</h2>
-            {appointment ? (
-              <dl
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "max-content 1fr",
-                  gap: "0.5rem 1rem",
-                }}
-              >
-                <dt style={{ fontWeight: 600 }}>Appointment ID</dt>
-                <dd>{appointment.id}</dd>
-                <dt style={{ fontWeight: 600 }}>Status</dt>
-                <dd>{appointment.status ?? "Unknown"}</dd>
-                <dt style={{ fontWeight: 600 }}>Scheduled For</dt>
-                <dd>{formatDate(appointment.scheduled_for)}</dd>
-                <dt style={{ fontWeight: 600 }}>Reason</dt>
-                <dd>{appointment.reason ?? "Not specified"}</dd>
-                <dt style={{ fontWeight: 600 }}>Created At</dt>
-                <dd>{formatDate(appointment.created_at)}</dd>
-                <dt style={{ fontWeight: 600 }}>Updated At</dt>
-                <dd>{formatDate(appointment.updated_at)}</dd>
-              </dl>
-            ) : (
-              <p>No appointment data found.</p>
-            )}
-          </section>
-
-          <section
-            style={{
-              padding: "1rem",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>Message Transcript</h2>
-            {sortedMessages.length ? (
-              <ul
-                style={{
-                  listStyle: "none",
-                  padding: 0,
-                  margin: 0,
-                  display: "grid",
-                  gap: "0.75rem",
-                }}
-              >
-                {sortedMessages.map((message) => (
-                  <li
-                    key={message.id}
-                    style={{
-                      border: "1px solid #f3f4f6",
-                      borderRadius: "6px",
-                      padding: "0.75rem",
-                    }}
-                  >
-                    <header
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginBottom: "0.35rem",
-                      }}
-                    >
-                      <span style={{ fontWeight: 600 }}>
-                        {message.sender || message.role || "Unknown sender"}
-                      </span>
-                      <span style={{ color: "#6b7280" }}>
-                        {formatDate(message.created_at)}
-                      </span>
-                    </header>
-                    <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-                      {message.content}
-                    </p>
-                  </li>
+        <div>
+          {rows.length === 0 ? (
+            <p>No appointments available.</p>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "0.5rem" }}>
+                    Time
+                  </th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "0.5rem" }}>
+                    Patient
+                  </th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "0.5rem" }}>
+                    Summary
+                  </th>
+                  <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "0.5rem" }}>
+                    Details
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((appointment) => (
+                  <tr key={appointment.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                    <td style={{ padding: "0.5rem" }}>{formatDate(appointment.time)}</td>
+                    <td style={{ padding: "0.5rem" }}>{appointment.patient}</td>
+                    <td style={{ padding: "0.5rem" }}>{appointment.summary}</td>
+                    <td style={{ padding: "0.5rem" }}>
+                      <Link
+                        to={`/admin/appointments/${appointment.id}`}
+                        style={{
+                          display: "inline-block",
+                          padding: "0.35rem 0.6rem",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "4px",
+                          textDecoration: "none",
+                        }}
+                      >
+                        Details
+                      </Link>
+                    </td>
+                  </tr>
                 ))}
-              </ul>
-            ) : (
-              <p>No transcript messages available.</p>
-            )}
-          </section>
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </main>
