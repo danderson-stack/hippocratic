@@ -2,6 +2,7 @@ import {
   Children,
   createContext,
   isValidElement,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -57,12 +58,15 @@ export function BrowserRouter({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("popstate", handler);
   }, []);
 
-  const navigate = (to: string) => {
-    if (to !== path) {
-      window.history.pushState({}, "", to);
-      setPath(to);
-    }
-  };
+  const navigate = useCallback((to: string) => {
+    setPath((previousPath) => {
+      if (previousPath !== to) {
+        window.history.pushState({}, "", to);
+        return to;
+      }
+      return previousPath;
+    });
+  }, []);
 
   const value = useMemo(
     () => ({ path, params, setParams, navigate }),
@@ -80,6 +84,20 @@ type RoutesProps = { children: ReactNode };
 
 type RouteElement = ReactElement<RouteProps>;
 
+const areParamsEqual = (
+  first: Record<string, string>,
+  second: Record<string, string>
+) => {
+  const firstEntries = Object.entries(first);
+  const secondEntries = Object.entries(second);
+
+  if (firstEntries.length !== secondEntries.length) return false;
+
+  return firstEntries.every(
+    ([key, value]) => Object.prototype.hasOwnProperty.call(second, key) && second[key] === value
+  );
+};
+
 export function Routes({ children }: RoutesProps) {
   const router = useContext(RouterContext);
 
@@ -89,19 +107,28 @@ export function Routes({ children }: RoutesProps) {
 
   const childArray = Children.toArray(children) as RouteElement[];
 
-  for (const child of childArray) {
-    if (!isValidElement<RouteProps>(child)) continue;
+  const matchedRoute = useMemo(() => {
+    for (const child of childArray) {
+      if (!isValidElement<RouteProps>(child)) continue;
 
-    const { path: routePath, element } = child.props;
-    const { matches, params } = matchPath(router.path, routePath);
+      const { path: routePath, element } = child.props;
+      const { matches, params } = matchPath(router.path, routePath);
 
-    if (matches) {
-      router.setParams(params);
-      return <>{element}</>;
+      if (matches) {
+        return { element, params };
+      }
     }
-  }
+    return null;
+  }, [childArray, router.path]);
 
-  return null;
+  useEffect(() => {
+    if (!matchedRoute) return;
+    if (!areParamsEqual(router.params, matchedRoute.params)) {
+      router.setParams(matchedRoute.params);
+    }
+  }, [matchedRoute, router]);
+
+  return matchedRoute ? <>{matchedRoute.element}</> : null;
 }
 
 export function Route(props: RouteProps) {
