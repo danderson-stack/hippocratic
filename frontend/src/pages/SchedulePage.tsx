@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { sendMessage } from "../services/scheduleApi";
+import { useScheduleApi } from "../services/scheduleApi";
 import type { ThreadMessage } from "../services/scheduleApi";
 
 const PENDING_AGENT_MESSAGE = "Agent is typing...";
@@ -12,6 +12,7 @@ function SchedulePage() {
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
   const pendingAgentIndexRef = useRef<number | null>(null);
+  const { send } = useScheduleApi();
 
   useEffect(() => {
     if (threadRef.current) {
@@ -48,7 +49,7 @@ function SchedulePage() {
     setInputValue("");
 
     try {
-      const updatedThread = await sendMessage(threadId, trimmed);
+      const updatedThread = await send(threadId, trimmed);
       setThreadId(updatedThread.id);
       setMessages(updatedThread.messages || []);
       pendingAgentIndexRef.current = null;

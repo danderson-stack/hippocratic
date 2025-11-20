@@ -1,3 +1,6 @@
+import { useCallback } from "react";
+import { API_BASE_URL } from "../constants/api";
+
 export type Role = "user" | "assistant" | "system";
 
 export interface ThreadMessage {
@@ -43,7 +46,7 @@ export async function sendMessage(
   threadId: string | undefined,
   content: string
 ): Promise<Thread> {
-  const response = await fetch("http://localhost:3000/api/query", {
+  const response = await fetch(`${API_BASE_URL}/api/query`, {
     method: "POST",
     headers: buildHeaders(),
     body: JSON.stringify({
@@ -67,7 +70,7 @@ export async function sendMessage(
 }
 
 export async function getThread(threadId: string): Promise<Thread> {
-  const response = await fetch(`/api/threads/${threadId}`, {
+  const response = await fetch(`${API_BASE_URL}/api/threads/${threadId}`, {
     headers: buildHeaders(),
   });
 
@@ -88,3 +91,11 @@ export async function getThread(threadId: string): Promise<Thread> {
 
   return thread;
 }
+
+export const useScheduleApi = () => {
+  const send = useCallback(async (threadId: string | undefined, content: string) => {
+    return sendMessage(threadId, content);
+  }, []);
+
+  return { send };
+};
