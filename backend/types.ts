@@ -9,6 +9,7 @@ export interface ThreadMessage {
 export interface Thread {
   id: string;
   messages: ThreadMessage[];
+  status?: ThreadStatus;
 }
 
 export interface UserProfile {
@@ -42,4 +43,20 @@ export interface QueryRequestBody {
   user: UserProfile;
   thread?: Thread;
   message: string;
+  selectedSlot?: string;
+}
+
+export type ThreadStatus =
+  | "collecting_details"
+  | "ready_to_schedule"
+  | "awaiting_confirmation"
+  | "scheduled";
+
+export interface Appointment {
+  id: string;
+  userId: string;
+  threadId: string;
+  start: string;
+  end: string;
+  createdAt: string;
 }

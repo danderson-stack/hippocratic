@@ -10,7 +10,7 @@ const mergeUserUpdate = (user, updates) => ({
     ...(updates || {}),
 });
 router.post("/", async (req, res) => {
-    const { user, thread, message } = req.body;
+    const { user, thread, message, selectedSlot } = req.body;
     console.log(`[ROUTE] Received message from user ${user?.id}: "${message}"`);
     if (!user || typeof user.id !== "string" || typeof message !== "string") {
         return res.status(400).json({ error: "user and message are required" });
@@ -37,6 +37,21 @@ router.post("/", async (req, res) => {
         role: "user",
         content: message,
     });
+    let confirmedAppointment;
+    if (selectedSlot) {
+        try {
+            confirmedAppointment = (0, scheduler_1.createAppointment)({
+                user: persistedUser,
+                threadId: activeThreadId,
+                slotStart: selectedSlot,
+            });
+            (0, storage_1.updateThreadStatus)(activeThreadId, "scheduled");
+        }
+        catch (error) {
+            console.error("Failed to create appointment:", error);
+            return res.status(400).json({ error: "Unable to create appointment" });
+        }
+    }
     try {
         console.log(`[ROUTE] Calling agent for user ${user.id} with message: "${message}"`);
         const agentResponse = await (0, agent_1.runAgent)({
@@ -52,14 +67,22 @@ router.post("/", async (req, res) => {
             content: agentResponse.assistantMessage,
         });
         const hasAllFields = agentResponse.hasAllRequiredFields || (0, agent_1.hasRequiredFields)(updatedUser);
-        if (agentResponse.scheduleAppointment) {
-            try {
-                await (0, scheduler_1.scheduleAppointment)(updatedUser);
-            }
-            catch (scheduleError) {
-                console.error("Failed to schedule appointment:", scheduleError);
-            }
+        const readyToSchedule = agentResponse.scheduleAppointment || hasAllFields || Boolean(confirmedAppointment);
+        let availableSlots = [];
+        let threadStatus = (0, storage_1.getThreadStatus)(activeThreadId);
+        if (confirmedAppointment) {
+            threadStatus = "scheduled";
         }
+        else if (readyToSchedule) {
+            availableSlots = (0, scheduler_1.getNextAvailableSlots)((0, storage_1.getAppointments)(), 3, new Date());
+            threadStatus = availableSlots.length
+                ? "awaiting_confirmation"
+                : "ready_to_schedule";
+        }
+        else {
+            threadStatus = "collecting_details";
+        }
+        (0, storage_1.updateThreadStatus)(activeThreadId, threadStatus);
         console.log(`[ROUTE] Sending response to user ${user.id}, hasAllRequiredFields: ${hasAllFields}, scheduleAppointment: ${agentResponse.scheduleAppointment}`);
         return res.json({
             message: agentResponse.assistantMessage,
@@ -67,6 +90,8 @@ router.post("/", async (req, res) => {
             thread: (0, storage_1.getThreadWithMessages)(activeThreadId),
             hasAllRequiredFields: hasAllFields,
             scheduleAppointment: agentResponse.scheduleAppointment,
+            availableSlots,
+            appointment: confirmedAppointment,
         });
     }
     catch (error) {

@@ -4,15 +4,21 @@ import {
   hasRequiredFields,
   runAgent,
 } from "../services/agent";
-import { scheduleAppointment } from "../services/scheduler";
+import {
+  createAppointment,
+  getNextAvailableSlots,
+} from "../services/scheduler";
 import {
   getOrCreateThreadForUser,
   getThreadMessages,
   getThreadWithMessages,
+  getThreadStatus,
   recordMessage,
   upsertUserProfile,
+  getAppointments,
+  updateThreadStatus,
 } from "../services/storage";
-import { QueryRequestBody, UserProfile } from "../types";
+import { QueryRequestBody, ThreadStatus, UserProfile } from "../types";
 
 const router = Router();
 
@@ -65,6 +71,21 @@ router.post("/", async (req: any, res: any) => {
     content: message,
   });
 
+  let confirmedAppointment;
+  if (selectedSlot) {
+    try {
+      confirmedAppointment = createAppointment({
+        user: persistedUser,
+        threadId: activeThreadId,
+        slotStart: selectedSlot,
+      });
+      updateThreadStatus(activeThreadId, "scheduled");
+    } catch (error) {
+      console.error("Failed to create appointment:", error);
+      return res.status(400).json({ error: "Unable to create appointment" });
+    }
+  }
+
   try {
     console.log(
       `[ROUTE] Calling agent for user ${user.id} with message: "${message}"`
@@ -93,17 +114,24 @@ router.post("/", async (req: any, res: any) => {
     const hasAllFields =
       agentResponse.hasAllRequiredFields || hasRequiredFields(updatedUser);
 
-    if (agentResponse.scheduleAppointment) {
-      try {
-        await scheduleAppointment({
-          user: updatedUser,
-          threadId: activeThreadId,
-          summary: message,
-        });
-      } catch (scheduleError) {
-        console.error("Failed to schedule appointment:", scheduleError);
-      }
+    const readyToSchedule =
+      agentResponse.scheduleAppointment || hasAllFields || Boolean(confirmedAppointment);
+
+    let availableSlots: string[] = [];
+    let threadStatus: ThreadStatus = getThreadStatus(activeThreadId);
+
+    if (confirmedAppointment) {
+      threadStatus = "scheduled";
+    } else if (readyToSchedule) {
+      availableSlots = getNextAvailableSlots(getAppointments(), 3, new Date());
+      threadStatus = availableSlots.length
+        ? "awaiting_confirmation"
+        : "ready_to_schedule";
+    } else {
+      threadStatus = "collecting_details";
     }
+
+    updateThreadStatus(activeThreadId, threadStatus);
 
     console.log(
       `[ROUTE] Sending response to user ${user.id}, hasAllRequiredFields: ${hasAllFields}, scheduleAppointment: ${agentResponse.scheduleAppointment}`
@@ -114,6 +142,8 @@ router.post("/", async (req: any, res: any) => {
       thread: getThreadWithMessages(activeThreadId),
       hasAllRequiredFields: hasAllFields,
       scheduleAppointment: agentResponse.scheduleAppointment,
+      availableSlots,
+      appointment: confirmedAppointment,
     });
   } catch (error) {
     console.error(`[ROUTE] Query handler error for user ${user?.id}:`, error);

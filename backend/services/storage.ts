@@ -1,5 +1,11 @@
 import { randomUUID } from "crypto";
-import { Appointment, Thread, ThreadMessage, UserProfile } from "../types";
+import {
+  Appointment,
+  Thread,
+  ThreadMessage,
+  ThreadStatus,
+  UserProfile,
+} from "../types";
 
 type StoredUserProfile = UserProfile & {
   createdAt: string;
@@ -11,6 +17,7 @@ type ThreadRecord = {
   userId: string;
   createdAt: string;
   updatedAt: string;
+  status: ThreadStatus;
 };
 
 type MessageRecord = ThreadMessage & {
@@ -24,7 +31,7 @@ type AppointmentRecord = Appointment;
 const users = new Map<string, StoredUserProfile>();
 const threads = new Map<string, ThreadRecord>();
 const messages = new Map<string, MessageRecord[]>();
-const appointments = new Map<string, AppointmentRecord>();
+const appointments: Appointment[] = [];
 
 const mergeUserProfile = (
   existing: UserProfile | undefined,
@@ -90,6 +97,7 @@ const ensureThreadRecord = (
       userId,
       createdAt: now,
       updatedAt: now,
+      status: "collecting_details",
     };
     threads.set(id, thread);
     created = true;
@@ -103,6 +111,20 @@ const touchThread = (threadId: string) => {
   if (!record) return;
 
   threads.set(threadId, { ...record, updatedAt: new Date().toISOString() });
+};
+
+export const updateThreadStatus = (
+  threadId: string,
+  status: ThreadStatus
+): ThreadStatus => {
+  const record = threads.get(threadId);
+  if (!record) {
+    throw new Error("Thread not found");
+  }
+
+  const updatedRecord = { ...record, status, updatedAt: new Date().toISOString() };
+  threads.set(threadId, updatedRecord);
+  return status;
 };
 
 export const recordMessage = ({
@@ -149,121 +171,44 @@ export const getOrCreateThreadForUser = (params: {
 }): { thread: ThreadRecord; created: boolean } =>
   ensureThreadRecord(params.userId, params.threadId);
 
-export const getThreadWithMessages = (threadId: string): Thread => ({
-  id: threadId,
-  messages: getThreadMessages(threadId),
-});
+export const getThreadWithMessages = (threadId: string): Thread => {
+  const record = threads.get(threadId);
+  if (!record) {
+    throw new Error("Thread not found");
+  }
 
-const toAppointment = (record: AppointmentRecord): Appointment => ({
-  ...record,
-});
+  return {
+    id: threadId,
+    messages: getThreadMessages(threadId),
+    status: record.status,
+  };
+};
 
-export const createAppointment = (params: {
+export const getThreadStatus = (threadId: string): ThreadStatus => {
+  const record = threads.get(threadId);
+  if (!record) {
+    throw new Error("Thread not found");
+  }
+
+  return record.status;
+};
+
+export const getAppointments = (): Appointment[] => [...appointments];
+
+export const createAppointment = (appointment: {
   userId: string;
   threadId: string;
-  summary?: string;
-  scheduledFor?: string;
-  status?: string;
+  start: string;
+  end: string;
 }): Appointment => {
   const now = new Date().toISOString();
-  const appointment: AppointmentRecord = {
+  const record: Appointment = {
+    ...appointment,
     id: randomUUID(),
-    userId: params.userId,
-    threadId: params.threadId,
-    status: params.status ?? "scheduled",
-    scheduledFor: params.scheduledFor,
-    summary: params.summary,
     createdAt: now,
-    updatedAt: now,
   };
 
-  appointments.set(appointment.id, appointment);
-  return toAppointment(appointment);
+  appointments.push(record);
+  touchThread(appointment.threadId);
+  return record;
 };
-
-export const getAppointmentById = (
-  appointmentId: string
-): Appointment | undefined => {
-  const record = appointments.get(appointmentId);
-  return record ? toAppointment(record) : undefined;
-};
-
-export const listAppointments = (params?: {
-  offset?: number;
-  limit?: number;
-}): { appointments: Appointment[]; total: number; offset: number; limit: number } => {
-  const safeOffset = Number.isFinite(params?.offset)
-    ? (params?.offset as number)
-    : 0;
-  const safeLimit = Number.isFinite(params?.limit)
-    ? (params?.limit as number)
-    : 20;
-
-  const offset = Math.max(0, Math.floor(safeOffset));
-  const limit = Math.max(1, Math.floor(safeLimit));
-
-  const allAppointments = Array.from(appointments.values()).sort(
-    (first, second) =>
-      new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()
-  );
-
-  const paginated = allAppointments.slice(offset, offset + limit).map(toAppointment);
-
-  return {
-    appointments: paginated,
-    total: allAppointments.length,
-    offset,
-    limit,
-  };
-};
-
-export const getAppointmentDetail = (appointmentId: string) => {
-  const appointment = getAppointmentById(appointmentId);
-  if (!appointment) return undefined;
-
-  const user = getUserProfile(appointment.userId);
-  const messages = getThreadMessages(appointment.threadId);
-
-  return {
-    appointment,
-    user,
-    messages,
-    thread: getThreadWithMessages(appointment.threadId),
-  };
-};
-
-const seedDemoData = () => {
-  if (users.size > 0 || threads.size > 0 || appointments.size > 0) return;
-
-  const demoUser: UserProfile = {
-    id: "demo-user",
-    firstName: "Casey",
-    lastName: "Client",
-    email: "casey.client@example.com",
-    phone: "555-0100",
-  };
-
-  upsertUserProfile(demoUser);
-  const { thread } = ensureThreadRecord(demoUser.id);
-
-  recordMessage({
-    threadId: thread.id,
-    role: "user",
-    content: "I'd like to schedule an appointment for a follow-up.",
-  });
-
-  recordMessage({
-    threadId: thread.id,
-    role: "assistant",
-    content: "Sure! I've reserved a spot for you tomorrow at 2:00 PM.",
-  });
-
-  createAppointment({
-    userId: demoUser.id,
-    threadId: thread.id,
-    summary: "Follow-up visit",
-    scheduledFor: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-  });
-};
-
-seedDemoData();
