@@ -145,7 +145,7 @@ function SchedulePage() {
         flexDirection: "column",
         gap: "16px",
         padding: "16px",
-        height: "100vh",
+        height: "85vh",
         boxSizing: "border-box",
       }}
     >
