@@ -1,34 +1,39 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import AdminAppointmentDetailPage from './pages/AdminAppointmentDetailPage'
+import AdminAppointmentsPage from './pages/AdminAppointmentsPage'
+import AppShell from './pages/AppShell'
+import SchedulePage from './pages/SchedulePage'
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#2f7ae5',
+    },
+    background: {
+      default: '#f5f7fb',
+    },
+  },
+  shape: {
+    borderRadius: 12,
+  },
+})
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <BrowserRouter>
+        <AppShell>
+          <Routes>
+            <Route path="/" element={<Navigate to="/schedule" replace />} />
+            <Route path="/schedule" element={<SchedulePage />} />
+            <Route path="/admin/appointments" element={<AdminAppointmentsPage />} />
+            <Route path="/admin/appointments/:id" element={<AdminAppointmentDetailPage />} />
+          </Routes>
+        </AppShell>
+      </BrowserRouter>
+    </ThemeProvider>
   )
 }
 
