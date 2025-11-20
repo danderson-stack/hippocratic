@@ -33,6 +33,8 @@ const mergeUserUpdate = (
 router.post("/", async (req, res) => {
   const { user, thread, message } = req.body as QueryRequestBody;
 
+  console.log(`[ROUTE] Received message from user ${user?.id}: "${message}"`);
+
   if (!user || !thread || typeof message !== "string") {
     return res
       .status(400)
@@ -43,11 +45,19 @@ router.post("/", async (req, res) => {
   const userThreadMessages = appendMessage(conversation, "user", message);
 
   try {
+    console.log(
+      `[ROUTE] Calling agent for user ${user.id} with message: "${message}"`
+    );
     const agentResponse = await runAgent({
       user,
       recentMessages: conversation,
       newestMessage: message,
     });
+    console.log(
+      `[ROUTE] Agent responded for user ${
+        user.id
+      }: "${agentResponse.assistantMessage.substring(0, 100)}..."`
+    );
 
     const updatedUser = mergeUserUpdate(user, agentResponse.userUpdate);
     const updatedThread = {
@@ -70,6 +80,9 @@ router.post("/", async (req, res) => {
       }
     }
 
+    console.log(
+      `[ROUTE] Sending response to user ${user.id}, hasAllRequiredFields: ${hasAllFields}, scheduleAppointment: ${agentResponse.scheduleAppointment}`
+    );
     return res.json({
       message: agentResponse.assistantMessage,
       user: updatedUser,
@@ -78,7 +91,7 @@ router.post("/", async (req, res) => {
       scheduleAppointment: agentResponse.scheduleAppointment,
     });
   } catch (error) {
-    console.error("Query handler error:", error);
+    console.error(`[ROUTE] Query handler error for user ${user?.id}:`, error);
     return res.status(500).json({
       message: FALLBACK_ASSISTANT_MESSAGE,
       user,
