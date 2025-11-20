@@ -1,39 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  Button,
-  CircularProgress,
-  TextField,
-  Typography,
-  Box,
-} from "@mui/material";
-
-interface ChatMessage {
-  id: number;
-  sender: "user" | "agent";
-  content: string;
-}
-
-async function sendMessageToBackend(message: string): Promise<string> {
-  // Placeholder for backend integration.
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  return `Agent received: ${message}`;
-}
+import { sendMessage } from "../services/scheduleApi";
+import type { ThreadMessage } from "../services/scheduleApi";
 
 function SchedulePage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 1,
-      sender: "user",
-      content: "Hello! I'd like to book an appointment.",
-    },
-    {
-      id: 2,
-      sender: "agent",
-      content: "Sure, I can help schedule that for you.",
-    },
-  ]);
+  const [messages, setMessages] = useState<ThreadMessage[]>([]);
+  const [threadId, setThreadId] = useState<string | undefined>();
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -44,24 +18,21 @@ function SchedulePage() {
 
   const handleSend = async () => {
     const trimmed = inputValue.trim();
-    if (!trimmed) return;
+    if (!trimmed || isSending) return;
     setIsSending(true);
-    const newUserMessage: ChatMessage = {
-      id: Date.now(),
-      sender: "user",
-      content: trimmed,
-    };
-    setMessages((prev) => [...prev, newUserMessage]);
+    setError(null);
     setInputValue("");
 
     try {
-      const agentReply = await sendMessageToBackend(trimmed);
-      const newAgentMessage: ChatMessage = {
-        id: Date.now() + 1,
-        sender: "agent",
-        content: agentReply,
-      };
-      setMessages((prev) => [...prev, newAgentMessage]);
+      const updatedThread = await sendMessage(threadId, trimmed);
+      setThreadId(updatedThread.id);
+      setMessages(updatedThread.messages || []);
+    } catch (sendError) {
+      const message =
+        sendError instanceof Error
+          ? sendError.message
+          : "Failed to send message";
+      setError(message);
     } finally {
       setIsSending(false);
     }
@@ -74,102 +45,144 @@ function SchedulePage() {
     }
   };
 
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    handleSend();
+  };
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(event.target.value);
+  };
+
   return (
-    <Box
-      sx={{
+    <div
+      style={{
         display: "flex",
         flexDirection: "column",
-        padding: 2,
-        gap: 2,
+        gap: "16px",
+        padding: "16px",
+        height: "100vh",
+        boxSizing: "border-box",
       }}
     >
-      <Typography variant="h4" component="h1" sx={{ textAlign: "center" }}>
+      <h1 style={{ textAlign: "center", margin: 0 }}>
         Hippocratic Appointment Schedule Agent
-      </Typography>
+      </h1>
 
-      <Box
+      {error && (
+        <div
+          style={{
+            color: "#b00020",
+            backgroundColor: "#fdecea",
+            padding: "12px",
+            borderRadius: "8px",
+            border: "1px solid #f5c6cb",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      <div
         ref={threadRef}
-        sx={{
+        style={{
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          gap: 1,
-          padding: 2,
+          gap: "12px",
+          padding: "16px",
           border: "1px solid #e0e0e0",
-          borderRadius: 1,
+          borderRadius: "8px",
           overflowY: "auto",
           backgroundColor: "#fafafa",
+          minHeight: "300px",
         }}
       >
-        {messages.map((message) => (
-          <Box
-            key={message.id}
-            sx={{
-              display: "flex",
-              justifyContent:
-                message.sender === "user" ? "flex-start" : "flex-end",
-            }}
-          >
-            <Box
-              sx={{
-                maxWidth: "70%",
-                padding: 1.5,
-                borderRadius: 1,
-                backgroundColor:
-                  message.sender === "user" ? "#e8f0fe" : "#e0f7e9",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+        {messages.length === 0 ? (
+          <p style={{ margin: 0, color: "#666" }}>
+            Send a message to start the conversation.
+          </p>
+        ) : (
+          messages.map((message, index) => (
+            <div
+              key={`${message.role}-${index}-${message.timestamp ?? ""}`}
+              style={{
+                display: "flex",
+                justifyContent: message.role === "user" ? "flex-start" : "flex-end",
               }}
             >
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {message.sender === "user" ? "User" : "Agent"}
-              </Typography>
-              <Typography variant="body1">{message.content}</Typography>
-            </Box>
-          </Box>
-        ))}
-      </Box>
+              <div
+                style={{
+                  maxWidth: "70%",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  backgroundColor: message.role === "user" ? "#e8f0fe" : "#e0f7e9",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: "4px", fontSize: "0.9rem" }}>
+                  {message.role === "user"
+                    ? "User"
+                    : message.role === "assistant"
+                    ? "Agent"
+                    : "System"}
+                </div>
+                <div style={{ fontSize: "1rem", lineHeight: 1.5 }}>{message.content}</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
-      <Box
-        component="form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          handleSend();
-        }}
-        sx={{
+      <form
+        onSubmit={handleSubmit}
+        style={{
           display: "flex",
           alignItems: "center",
-          gap: 1.5,
+          gap: "12px",
           borderTop: "1px solid #e0e0e0",
-          paddingTop: 1,
+          paddingTop: "12px",
         }}
       >
-        <TextField
-          fullWidth
-          variant="outlined"
-          label="Add a message"
+        <input
+          type="text"
           value={inputValue}
-          onChange={(event) => setInputValue(event.target.value)}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           disabled={isSending}
+          placeholder="Add a message"
+          style={{
+            flex: 1,
+            padding: "12px",
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+            fontSize: "1rem",
+          }}
         />
-        <Button
-          variant="contained"
-          color="primary"
+        <button
+          type="submit"
           onClick={handleSend}
           disabled={isSending || !inputValue.trim()}
-          sx={{ minWidth: 120, display: "flex", gap: 1, alignItems: "center" }}
+          style={{
+            minWidth: "120px",
+            padding: "12px 16px",
+            borderRadius: "8px",
+            border: "none",
+            backgroundColor: isSending || !inputValue.trim() ? "#9e9e9e" : "#1976d2",
+            color: "white",
+            cursor: isSending || !inputValue.trim() ? "not-allowed" : "pointer",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "1rem",
+          }}
         >
-          {isSending ? (
-            <>
-              <CircularProgress size={20} color="inherit" />
-              Sending...
-            </>
-          ) : (
-            "Send"
-          )}
-        </Button>
-      </Box>
-    </Box>
+          {isSending ? "Sending..." : "Send"}
+        </button>
+      </form>
+    </div>
   );
 }
 
