@@ -31,6 +31,6 @@ export interface AgentResponsePayload {
 
 export interface QueryRequestBody {
   user: UserProfile;
-  thread: Thread;
+  thread?: Thread;
   message: string;
 }
